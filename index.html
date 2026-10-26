@@ -37,8 +37,9 @@ b,strong{font-weight:700}
 
 /* ---- En-tête ---- */
 .top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:22px}
-.tag{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--grey)}
-.tag i{width:12px;height:12px;background:var(--blue);display:inline-block}
+.brand{display:inline-flex;align-items:center;gap:12px;font-weight:700;font-size:.95rem;color:var(--grey)}
+.brand img{height:30px;width:auto;display:block}
+.theme{display:block;margin:0 0 6px;font-weight:900;font-size:clamp(1.25rem,4.6vw,1.6rem);letter-spacing:.03em;text-transform:uppercase;color:var(--blue-ink);line-height:1.2}
 .test{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:2px solid var(--blue);color:var(--blue-ink);padding:2px 8px}
 
 /* ---- Panneaux ---- */
@@ -187,7 +188,7 @@ tr.win td{font-weight:700;background:#E5F5FC}
 
 <div class="wrap">
   <header class="top">
-    <span class="tag"><i></i>Win with wedi</span>
+    <span class="brand"><img src="logo-wedi.svg" alt="wedi" onerror="this.remove()">win with wedi</span>
     <span class="test" id="modeTag">Version test</span>
   </header>
   <main id="app"></main>
@@ -403,7 +404,7 @@ function renderQuestion(){
     return `<i class="${a? (a.ok?"done-ok":"done-ko") : ""} ${n===state.i?"now":""}" title="Question ${n+1}"></i>`;
   }).join("");
   show(`
-    <span class="tag"><i></i>${esc(Q.p)}</span>
+    <h2 class="theme">${esc(Q.p)}</h2>
     <div class="progress" aria-hidden="true">${prog}</div>
     <div class="qhead"><span class="qnum">Question ${state.i+1} / ${QUESTIONS.length}</span><span class="timer" id="timer">${fmtTime(Math.round((Date.now()-state.start)/1000))}</span></div>
     <h2 class="q">${esc(Q.q)}</h2>
