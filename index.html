@@ -146,8 +146,7 @@ h3{font-weight:900;font-size:1.05rem;margin:22px 0 10px;color:var(--grey)}
 .overlay .sq{display:flex;flex-wrap:wrap;gap:clamp(6px,1.8vw,10px)}
 .overlay .sq i{width:clamp(18px,5.6vw,26px);aspect-ratio:1;border:3px solid var(--white);display:block;flex:none}
 .overlay .sq i.on{background:var(--white)}
-.confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:40}
-.confetti i{position:absolute;top:-30px;display:block;opacity:0}
+.confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:40}
 .result-msg{display:grid;gap:10px}
 .result-msg p{margin:0}
 .result-msg .lead{font-weight:900;font-size:1.15rem;color:var(--grey)}
@@ -178,8 +177,7 @@ tr.win td{font-weight:700;background:#E5F5FC}
   .overlay.out{animation:ovOut .5s ease-in-out both}
   @keyframes ovIn{from{opacity:0}to{opacity:1}}
   @keyframes ovOut{from{opacity:1}to{opacity:0}}
-  .confetti i{animation-name:fall;animation-timing-function:cubic-bezier(.3,.2,.6,1);animation-fill-mode:forwards;will-change:transform}
-  @keyframes fall{0%{opacity:1;transform:translate(0,0)}85%{opacity:1}100%{opacity:0;transform:translate(var(--drift,0),110vh)}}
+
   .overlay .eyebrow{animation:up .45s ease-out .15s both}
   .overlay .big{animation:slam .6s cubic-bezier(.2,1.25,.4,1) .25s both}
   .overlay .meta{animation:up .45s ease-out .9s both}
@@ -480,21 +478,52 @@ function finish(){
 /* =====================================================================
    ÉCRAN 3 — résultat
    ===================================================================== */
-/* Pluie de carrés aux couleurs wedi, visible sur l'écran bleu puis sur le résultat. */
+/* Explosion de confettis carrés : ils jaillissent du bas de l'écran, montent, puis retombent.
+   Dessinée sur un canvas pour rester fluide sur mobile. */
 function confetti(){
   if(reducedMotion()) return;
-  const box = document.createElement("div"); box.className = "confetti"; box.setAttribute("aria-hidden","true");
-  const colors = ["#FFFFFF","#E3E4E5","#575756","#0077AA","#FFFFFF"];
-  const n = window.innerWidth < 500 ? 40 : 70;
-  for(let i=0;i<n;i++){
-    const size = 8+Math.random()*14, el = document.createElement("i");
-    const drift = (Math.random()*2-1)*60;
-    el.style.cssText = `left:${Math.random()*100}%;width:${size}px;height:${size}px;background:${colors[i%colors.length]};--drift:${drift.toFixed(0)}px;animation-duration:${(3+Math.random()*2.2).toFixed(2)}s;animation-delay:${(Math.random()*1.4).toFixed(2)}s`;
-    box.appendChild(el);
-  }
-  document.body.appendChild(box);
-  setTimeout(()=>box.remove(), 7500);
+  const cv = document.createElement("canvas");
+  cv.className = "confetti"; cv.setAttribute("aria-hidden","true");
+  document.body.appendChild(cv);
+  const ctx = cv.getContext("2d");
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  let W=0, H=0;
+  const size = () => { W = window.innerWidth; H = window.innerHeight; cv.width = W*dpr; cv.height = H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0) };
+  size(); window.addEventListener("resize", size);
+  const colors = ["#FFFFFF","#FFFFFF","#E3E4E5","#575756","#0077AA"];
+  const parts = [];
+  const scale = Math.min(1.25, Math.max(.75, H/800));         // force adaptée à la hauteur de l'écran
+  const burst = (x, count, spread) => {
+    for(let i=0;i<count;i++){
+      const ang = -Math.PI/2 + (Math.random()*2-1)*spread;      // vers le haut, éventail
+      const speed = (1400 + Math.random()*1300) * scale;         // px/s
+      parts.push({x, y:H+10, vx:Math.cos(ang)*speed, vy:Math.sin(ang)*speed,
+        s:7+Math.random()*11, c:colors[(Math.random()*colors.length)|0],
+        r:Math.random()*Math.PI, vr:(Math.random()*2-1)*6, life:0});
+    }
+  };
+  const n = W < 500 ? 55 : 90;
+  burst(W*0.5, n, 0.45);                                         // canon central
+  setTimeout(()=>{ burst(W*0.12, n*0.5|0, 0.3); burst(W*0.88, n*0.5|0, 0.3) }, 350);   // canons latéraux
+  const G = 1100*scale, K = 2.1;                               // gravité et résistance de l'air (effet flottant)
+  let last = performance.now(), start = last;
+  (function frame(now){
+    const dt = Math.min(0.033, (now-last)/1000); last = now;
+    ctx.clearRect(0,0,W,H);
+    let alive = 0;
+    for(const p of parts){
+      const f = Math.exp(-K*dt); p.life += dt; p.vy = p.vy*f + G*dt; p.vx *= f;
+      p.x += p.vx*dt; p.y += p.vy*dt; p.r += p.vr*dt;
+      if(p.y < H+40){ alive++;
+        ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.r);
+        ctx.globalAlpha = Math.max(0, Math.min(1, 1-(p.life-3)/1));  // fondu après 3 s
+        ctx.fillStyle = p.c; ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s); ctx.restore(); }
+    }
+    if((alive || now-start<400) && now-start < 6000) requestAnimationFrame(frame);
+    else { window.removeEventListener("resize", size); cv.remove() }
+  })(last);
 }
+
 function screenResult(r, saved){
   show(`
     ${bar(["Félicitations,", player.prenom+" !"])}
