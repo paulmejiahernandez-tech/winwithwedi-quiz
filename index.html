@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Quiz wedi Aubade</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@300;400;700;900&display=swap">
+<style>
+/* Layout : écran unique en colonne, bandeau titre en barres wedi, carrés pour réponses / progression / score. */
+:root{
+  --blue:#009FE3;        /* wedi blue, 100 % cyan */
+  --blue-ink:#0077AA;    /* bleu lisible pour petits textes sur blanc */
+  --grey:#575756;        /* wedi grey */
+  --grey-soft:#E3E4E5;   /* fond gris clair des maquettes CD */
+  --white:#FFFFFF;
+  --ok:#2E8B3E;
+  --ko:#D7262B;
+  --line:#C9CACB;
+  --font:"Noto Sans",Verdana,Arial,sans-serif;
+  --dots:Verdana,"DejaVu Sans",sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--white);color:var(--grey);font-family:var(--font);font-weight:300;font-size:16px;line-height:1.55}
+.wrap{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.dots{font-family:var(--dots)}
+b,strong{font-weight:700}
+
+/* ---- Barre de titre (CD : barres connectées, alignées à gauche, sans arrondi) ---- */
+.bar{margin:0;font-weight:900;font-size:clamp(1.6rem,6vw,2.6rem);line-height:1.18;text-wrap:balance}
+.bar span{background:var(--blue);color:var(--white);padding:.06em .3em;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.sub{display:inline-block;background:var(--white);margin-top:14px}
+.sub strong{display:block;color:var(--blue-ink);font-weight:900}
+
+/* ---- En-tête ---- */
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:22px}
+.tag{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--grey)}
+.tag i{width:12px;height:12px;background:var(--blue);display:inline-block}
+.test{font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:2px solid var(--blue);color:var(--blue-ink);padding:2px 8px}
+
+/* ---- Panneaux ---- */
+.panel{background:var(--grey-soft);padding:22px;margin-top:22px}
+.hero{background:var(--grey-soft);padding:28px 22px 22px}
+.facts{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px}
+.fact{background:var(--white);padding:10px 14px;font-weight:700;color:var(--grey)}
+.fact b{color:var(--blue-ink);font-weight:900}
+
+/* ---- Formulaire ---- */
+form{display:grid;gap:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:520px){.grid2{grid-template-columns:1fr}}
+label.f{display:grid;gap:4px;font-weight:700;font-size:.9rem}
+input[type=text],input[type=email],input[type=password]{font:inherit;font-weight:400;padding:12px;border:2px solid var(--line);background:var(--white);color:var(--grey);border-radius:0;width:100%}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:.88rem}
+.check input{width:20px;height:20px;margin-top:2px;accent-color:var(--blue);flex:none}
+.msg{padding:12px 14px;font-weight:700;font-size:.92rem}
+.msg.err{background:var(--white);border-left:6px solid var(--ko);color:var(--ko)}
+.msg.info{background:var(--white);border-left:6px solid var(--blue)}
+.hint{font-size:.82rem}
+.hint code{font-family:var(--dots);font-size:.8rem;background:var(--white);padding:1px 5px}
+
+/* ---- Boutons ---- */
+.btn{font:inherit;font-weight:900;border:0;border-radius:0;background:var(--blue);color:var(--white);padding:14px 22px;cursor:pointer;font-size:1rem;justify-self:start}
+.btn:hover{background:var(--blue-ink)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.btn.ghost{background:var(--white);color:var(--grey);border:2px solid var(--grey)}
+.btn.ghost:hover{background:var(--grey);color:var(--white)}
+.btn.danger{background:var(--white);color:var(--ko);border:2px solid var(--ko)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+
+/* ---- Quiz ---- */
+.progress{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 18px}
+.progress i{width:18px;height:18px;border:2px solid var(--blue);display:block}
+.progress i.done-ok{background:var(--blue)}
+.progress i.done-ko{background:var(--grey);border-color:var(--grey)}
+.progress i.now{outline:2px solid var(--grey);outline-offset:2px}
+.qhead{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap}
+.qnum{font-weight:900;color:var(--blue-ink);font-variant-numeric:tabular-nums}
+.timer{font-variant-numeric:tabular-nums;font-weight:700;font-size:.9rem}
+h2.q{font-weight:700;font-size:clamp(1.2rem,4.4vw,1.55rem);line-height:1.3;margin:10px 0 18px;color:var(--grey);text-wrap:balance}
+.opts{display:grid;gap:10px}
+.opt{display:flex;align-items:center;gap:14px;width:100%;text-align:left;font:inherit;font-weight:400;font-size:1.02rem;background:var(--white);color:var(--grey);border:2px solid var(--white);border-radius:0;padding:0 14px 0 0;cursor:pointer;min-height:56px}
+.opt .k{flex:none;width:56px;align-self:stretch;display:grid;place-items:center;background:var(--blue);color:var(--white);font-weight:900;font-size:1.1rem}
+.opt:hover:not([disabled]){border-color:var(--blue)}
+.opt[disabled]{cursor:default}
+.opt.is-ok{border-color:var(--ok)}.opt.is-ok .k{background:var(--ok)}
+.opt.is-ko{border-color:var(--ko)}.opt.is-ko .k{background:var(--ko)}
+.opt.dim{opacity:.55}
+.fb{margin-top:16px;background:var(--white);padding:14px 16px;border-left:6px solid var(--blue)}
+.fb.ok{border-left-color:var(--ok)}.fb.ko{border-left-color:var(--ko)}
+.fb strong{display:block;font-weight:900}
+
+/* ---- Résultat ---- */
+.result{display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:center}
+@media (max-width:520px){.result{grid-template-columns:1fr}}
+.score{width:150px;height:150px;background:var(--blue);color:var(--white);display:grid;place-content:center;text-align:center;font-weight:900}
+.score b{font-size:3rem;line-height:1;font-weight:900;font-variant-numeric:tabular-nums}
+.score span{font-weight:700;font-size:.9rem}
+.recap{display:grid;gap:8px;margin-top:6px}
+.rc{display:grid;grid-template-columns:22px 1fr;gap:10px;align-items:start;font-size:.92rem;background:var(--white);padding:10px 12px}
+.rc i{width:22px;height:22px;display:block}
+.rc i.ok{background:var(--blue)}.rc i.ko{background:var(--grey)}
+.rc small{display:block;color:var(--grey)}
+
+/* ---- Admin ---- */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media (max-width:520px){.stats{grid-template-columns:1fr 1fr}}
+.stat{background:var(--white);padding:14px}
+.stat b{display:block;font-size:1.8rem;font-weight:900;color:var(--blue-ink);font-variant-numeric:tabular-nums;line-height:1.1}
+.stat span{font-size:.8rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.qrate{display:grid;gap:6px}
+.qr{display:grid;grid-template-columns:minmax(0,1fr) 120px 44px;gap:10px;align-items:center;font-size:.85rem}
+.qr .t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.qr .track{height:12px;background:var(--white)}
+.qr .fill{height:12px;background:var(--blue)}
+.qr .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto;background:var(--white)}
+table{border-collapse:collapse;width:100%;font-size:.85rem;min-width:640px}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--grey-soft);white-space:nowrap}
+th{font-weight:900;color:var(--white);background:var(--grey)}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+h3{font-weight:900;font-size:1.05rem;margin:22px 0 10px;color:var(--grey)}
+.foot{margin-top:34px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:.8rem}
+.linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--grey);text-decoration:underline;cursor:pointer}
+.confirm{background:var(--white);border:2px solid var(--ko);padding:12px;display:grid;gap:10px}
+@media (prefers-reduced-motion:no-preference){.screen{animation:in .25s ease-out}@keyframes in{from{transform:translateY(6px)}to{transform:none}}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <span class="tag"><i></i>Win with wedi</span>
+    <span class="test" id="modeTag">Version test</span>
+  </header>
+  <main id="app"></main>
+  <footer class="foot">
+    <span>Quiz Aubade 2026 · réservé aux membres du programme de récompenses</span>
+    <button class="linkbtn" id="adminLink" type="button">Espace organisateur</button>
+  </footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+/* =====================================================================
+   CONFIGURATION — à modifier pour chaque concours de la série
+   ===================================================================== */
+const CONFIG = {
+  CONCOURS_ID: "aubade-2026-01",          // change à chaque concours : 1 participation par membre et par concours
+  CONCOURS_TITRE: "Quiz Aubade 2026",
+  LOT: "des goodies wedi",
+  // URL du script Google (voir apps-script.gs). Vide = version test : données gardées sur l'appareil.
+  ENDPOINT: "",
+  // Codes membres de démonstration (utilisés seulement quand ENDPOINT est vide).
+  MEMBRES_DEMO: ["WEDI-1001","WEDI-1002","WEDI-1003","WEDI-1004","WEDI-1005"],
+  ADMIN_PIN: "wedi2026"                   // version test uniquement ; en ligne, le PIN est vérifié par le script Google
+};
+
+const QUESTIONS = [
+  {p:"Fundo Thermo", q:"Quel niveau d’efficacité en récupération de chaleur atteint le Fundo Thermo ?", o:["25 %","50 %","75 %"], a:1, e:"Le Fundo Thermo atteint 50 % d’efficacité en récupération de chaleur."},
+  {p:"Fundo Thermo", q:"De quelle manière le Fundo Thermo fonctionne-t-il ?", o:["Avec une batterie","Sans électricité","Avec un moteur"], a:1, e:"Le Fundo Thermo fonctionne sans électricité."},
+  {p:"Fundo Thermo", q:"Que permet de faire l’échangeur de chaleur intégré ?", o:["Refroidir l’eau","Préchauffer l’eau","Filtrer l’eau"], a:1, e:"L’échangeur de chaleur intégré préchauffe l’eau."},
+  {p:"Cloison XS", q:"Quelle est la largeur de la cloison XS ?", o:["200 mm","300 mm","500 mm"], a:1, e:"La cloison XS mesure 300 mm de large."},
+  {p:"Cloison XS", q:"Qu’est-ce qui est intégré en usine dans la cloison XS ?", o:["Une évacuation","Les conduites d’eau","Un siphon"], a:1, e:"Les conduites d’eau sont intégrées en usine."},
+  {p:"Cloison XS", q:"Comment peut-on ajuster la hauteur de la cloison XS ?", o:["En la chauffant","En la pliant","En la recoupant"], a:2, e:"On ajuste la hauteur de la cloison XS en la recoupant."},
+  {p:"Vasque Flex", q:"Quelle est la capacité de charge maximale de la vasque Flex ?", o:["100 kg","150 kg","200 kg"], a:1, e:"La vasque Flex supporte jusqu’à 150 kg."},
+  {p:"Vasque Flex", q:"Comment se fixe la vasque Flex ?", o:["Avec des vis","Avec des consoles fixées au mur","Par collage"], a:1, e:"La vasque Flex se fixe avec des consoles fixées au mur."},
+  {p:"Vasque Flex", q:"Quel type de finition pour la vasque Flex ?", o:["Peinture","Carrelage","Parquet"], a:1, e:"La vasque Flex se finit en carrelage."},
+  {p:"Fundo Solido", q:"En combien de temps le Fundo Solido est-il prêt à recevoir le revêtement PVC ?", o:["24 heures","48 heures","1 semaine"], a:1, e:"Le Fundo Solido est prêt à recevoir le revêtement PVC en 48 heures."},
+  {p:"Fundo Solido", q:"Quel revêtement est compatible avec le Fundo Solido ?", o:["Carrelage","Parquet","Sol souple PVC"], a:2, e:"Le Fundo Solido est compatible avec le sol souple PVC."},
+  {p:"Fundo Solido", q:"Quel est le matériau utilisé pour le cœur du Fundo Solido ?", o:["Bois","Mousse PET (bouteilles recyclées)","Mousse de polystyrène expansé"], a:1, e:"Le cœur du Fundo Solido est en mousse PET issue de bouteilles recyclées."}
+];
+
+/* =====================================================================
+   STOCKAGE — local (version test) ou script Google (site en ligne)
+   ===================================================================== */
+const LS_KEY = "wediQuiz.results";
+function lsRead(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||"[]") }catch(e){ return [] } }
+function lsWrite(list){ try{ localStorage.setItem(LS_KEY, JSON.stringify(list)); return true }catch(e){ return false } }
+async function api(action, payload){
+  const r = await fetch(CONFIG.ENDPOINT,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action,concours:CONFIG.CONCOURS_ID,...payload})});
+  if(!r.ok) throw new Error("Serveur indisponible ("+r.status+")");
+  return r.json();
+}
+const Store = {
+  async checkMember(code,email){
+    if(CONFIG.ENDPOINT) return api("check",{code,email});
+    if(!CONFIG.MEMBRES_DEMO.includes(code)) return {ok:false,reason:"unknown"};
+    if(lsRead().some(r=>r.concours===CONFIG.CONCOURS_ID && r.code===code)) return {ok:false,reason:"played"};
+    return {ok:true};
+  },
+  async save(result){
+    const list = lsRead(); list.push(result); lsWrite(list);
+    if(CONFIG.ENDPOINT) return api("submit",{result});
+    return {ok:true,score:result.score};
+  },
+  async list(pin){
+    if(CONFIG.ENDPOINT){ const r = await api("list",{pin}); if(!r.ok) throw new Error(r.reason==="pin"?"Code PIN incorrect.":"Lecture impossible."); return r.results }
+    if(pin!==CONFIG.ADMIN_PIN) throw new Error("Code PIN incorrect.");
+    return lsRead().filter(r=>r.concours===CONFIG.CONCOURS_ID);
+  },
+  clearLocal(){ lsWrite(lsRead().filter(r=>r.concours!==CONFIG.CONCOURS_ID)) }
+};
+
+/* =====================================================================
+   OUTILS
+   ===================================================================== */
+const $app = document.getElementById("app");
+const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const dots = s => esc(s).replace(/(\.\.\.|…)/g,'<span class="dots">...</span>');
+function bar(lines){ return '<h1 class="bar">'+lines.map(l=>'<span>'+dots(l)+'</span>').join("<br>")+'</h1>' }
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]} return a }
+const fmtTime = s => Math.floor(s/60)+" min "+String(s%60).padStart(2,"0")+" s";
+const fmtDate = iso => new Date(iso).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"});
+function show(html){ $app.innerHTML = '<section class="screen">'+html+'</section>'; window.scrollTo(0,0) }
+
+async function saveFile(filename, data){
+  let dl = null;
+  try{ if(window.claude && window.claude.use) dl = await window.claude.use("downloads") }catch(e){}
+  if(dl){ await dl.save({filename,data}); return }
+  const blob = data instanceof Blob ? data : new Blob([data]);
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+
+document.getElementById("modeTag").hidden = !!CONFIG.ENDPOINT;
+
+/* =====================================================================
+   ÉCRAN 1 — inscription
+   ===================================================================== */
+let player = null, state = null, timerId = null;
+
+function screenStart(err){
+  show(`
+    <div class="hero">
+      ${bar(["Testez vos","connaissances wedi ..."])}
+      <div class="facts">
+        <span class="fact"><b>12</b> questions</span>
+        <span class="fact"><b>4</b> produits</span>
+        <span class="fact">À gagner : <b>${esc(CONFIG.LOT)}</b></span>
+      </div>
+    </div>
+    <div class="panel">
+      <form id="startForm" novalidate>
+        <div class="grid2">
+          <label class="f" for="prenom">Prénom<input type="text" id="prenom" autocomplete="given-name" required></label>
+          <label class="f" for="nom">Nom<input type="text" id="nom" autocomplete="family-name" required></label>
+        </div>
+        <div class="grid2">
+          <label class="f" for="email">E-mail<input type="email" id="email" autocomplete="email" required></label>
+          <label class="f" for="code">N° de membre<input type="text" id="code" autocomplete="off" placeholder="WEDI-0000" required></label>
+        </div>
+        <label class="check" for="rgpd"><input type="checkbox" id="rgpd">
+          <span>J’accepte que wedi enregistre mon nom, mon e-mail, mon n° de membre et mon score pour organiser ce concours et attribuer les lots. Ces données ne sont pas utilisées à d’autres fins.</span></label>
+        <label class="check" for="reglement"><input type="checkbox" id="reglement">
+          <span>Je confirme être membre du programme de récompenses et j’accepte le règlement du concours (une participation par membre).</span></label>
+        ${err?`<div class="msg err" role="alert">${esc(err)}</div>`:""}
+        <button class="btn" type="submit" id="goBtn">Commencer le quiz</button>
+        ${CONFIG.ENDPOINT?"":`<p class="hint">Version test : utilisez un code de démonstration, par exemple <code>WEDI-1001</code> à <code>WEDI-1005</code>.</p>`}
+      </form>
+    </div>`);
+  if(player){ for(const k of ["prenom","nom","email","code"]) document.getElementById(k).value = player[k]||"" }
+  document.getElementById("startForm").addEventListener("submit", onStart);
+}
+
+async function onStart(ev){
+  ev.preventDefault();
+  const v = id => document.getElementById(id).value.trim();
+  player = {prenom:v("prenom"), nom:v("nom"), email:v("email").toLowerCase(), code:v("code").toUpperCase()};
+  if(!player.prenom||!player.nom) return screenStart("Indiquez votre prénom et votre nom.");
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(player.email)) return screenStart("Indiquez une adresse e-mail valide.");
+  if(!player.code) return screenStart("Indiquez votre numéro de membre.");
+  if(!document.getElementById("rgpd").checked||!document.getElementById("reglement").checked) return screenStart("Cochez les deux cases pour participer.");
+  const btn = document.getElementById("goBtn"); btn.disabled = true; btn.textContent = "Vérification ...";
+  try{
+    const r = await Store.checkMember(player.code, player.email);
+    if(!r.ok){
+      return screenStart(r.reason==="played" ? "Ce numéro de membre a déjà participé à ce concours."
+        : r.reason==="email" ? "Cet e-mail ne correspond pas au numéro de membre."
+        : "Numéro de membre introuvable. Ce concours est réservé aux membres inscrits au programme de récompenses.");
+    }
+    if(r.prenom && !player.prenom) player.prenom = r.prenom;
+    startQuiz();
+  }catch(e){ screenStart("Connexion impossible. Vérifiez votre réseau et réessayez.") }
+}
+
+/* =====================================================================
+   ÉCRAN 2 — quiz
+   ===================================================================== */
+function startQuiz(){
+  state = {i:0, answers:[], start:Date.now(), order:QUESTIONS.map((q,idx)=>({idx, opts:shuffle(q.o.map((t,k)=>({t,k})))}))};
+  clearInterval(timerId);
+  timerId = setInterval(()=>{const t=document.getElementById("timer"); if(t) t.textContent = fmtTime(Math.round((Date.now()-state.start)/1000))},1000);
+  renderQuestion();
+}
+
+function renderQuestion(){
+  const cur = state.order[state.i], Q = QUESTIONS[cur.idx];
+  const prog = state.order.map((_,n)=>{
+    const a = state.answers[n];
+    return `<i class="${a? (a.ok?"done-ok":"done-ko") : ""} ${n===state.i?"now":""}" title="Question ${n+1}"></i>`;
+  }).join("");
+  show(`
+    <span class="tag"><i></i>${esc(Q.p)}</span>
+    <div class="progress" aria-hidden="true">${prog}</div>
+    <div class="qhead"><span class="qnum">Question ${state.i+1} / ${QUESTIONS.length}</span><span class="timer" id="timer">${fmtTime(Math.round((Date.now()-state.start)/1000))}</span></div>
+    <h2 class="q">${esc(Q.q)}</h2>
+    <div class="opts" role="group" aria-label="Réponses">
+      ${cur.opts.map((o,n)=>`<button class="opt" type="button" data-k="${o.k}"><span class="k">${"ABC"[n]}</span><span>${esc(o.t)}</span></button>`).join("")}
+    </div>
+    <div id="fb"></div>`);
+  document.querySelectorAll(".opt").forEach(b=>b.addEventListener("click",()=>answer(+b.dataset.k)));
+}
+
+function answer(k){
+  const cur = state.order[state.i], Q = QUESTIONS[cur.idx], ok = k===Q.a;
+  state.answers[state.i] = {q:cur.idx, choix:k, ok};
+  document.querySelectorAll(".opt").forEach(b=>{
+    const bk = +b.dataset.k; b.disabled = true;
+    if(bk===Q.a) b.classList.add("is-ok"); else if(bk===k) b.classList.add("is-ko"); else b.classList.add("dim");
+  });
+  const last = state.i===QUESTIONS.length-1;
+  document.getElementById("fb").innerHTML = `
+    <div class="fb ${ok?"ok":"ko"}" role="status"><strong>${ok?"Bonne réponse !":"Pas tout à fait."}</strong>${esc(Q.e)}</div>
+    <div class="row" style="margin-top:14px"><button class="btn" type="button" id="next">${last?"Voir mon score":"Question suivante"}</button></div>`;
+  const nx = document.getElementById("next"); nx.focus();
+  nx.addEventListener("click", ()=>{ if(last) finish(); else { state.i++; renderQuestion() } });
+}
+
+async function finish(){
+  clearInterval(timerId);
+  const score = state.answers.filter(a=>a.ok).length;
+  const result = {
+    id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
+    concours: CONFIG.CONCOURS_ID, prenom:player.prenom, nom:player.nom, email:player.email, code:player.code,
+    score, total:QUESTIONS.length, dureeSec: Math.round((Date.now()-state.start)/1000),
+    date: new Date().toISOString(),
+    reponses: state.answers.map(a=>({q:a.q, choix:a.choix, ok:a.ok}))
+  };
+  show(`<div class="panel"><p class="msg info">Enregistrement de votre participation ...</p></div>`);
+  let saved = true;
+  try{ await Store.save(result) }catch(e){ saved = false }
+  screenResult(result, saved);
+}
+
+/* =====================================================================
+   ÉCRAN 3 — résultat
+   ===================================================================== */
+function screenResult(r, saved){
+  const pct = r.score/r.total;
+  const lines = pct===1 ? ["Score parfait,", player.prenom+" !"] : pct>=.75 ? ["Bravo", player.prenom+" !"] : pct>=.5 ? ["Bien joué", player.prenom+" ..."] : ["Merci", player.prenom+" ..."];
+  show(`
+    ${bar(lines)}
+    <div class="panel result">
+      <div class="score"><b>${r.score}/${r.total}</b><span>en ${fmtTime(r.dureeSec)}</span></div>
+      <div>
+        <p style="margin:0"><strong>${saved?"Votre participation est enregistrée.":"Votre participation n’a pas pu être envoyée."}</strong>
+        ${saved?`Les gagnants des ${esc(CONFIG.LOT)} seront contactés par e-mail. En cas d’égalité, le temps de réponse départage les participants.`:"Vérifiez votre connexion et prévenez l’organisateur : votre score est conservé sur cet appareil."}</p>
+      </div>
+    </div>
+    <h3>Les bonnes réponses</h3>
+    <div class="recap">
+      ${r.reponses.map(a=>{const Q=QUESTIONS[a.q];return `<div class="rc"><i class="${a.ok?"ok":"ko"}" title="${a.ok?"Correct":"Incorrect"}"></i><div><strong>${esc(Q.q)}</strong><small>${a.ok?"":"Votre réponse : "+esc(Q.o[a.choix])+" · "}Bonne réponse : ${esc(Q.o[Q.a])}</small></div></div>`}).join("")}
+    </div>
+    <div class="row" style="margin-top:22px"><button class="btn ghost" type="button" id="again">Retour à l’accueil</button></div>`);
+  document.getElementById("again").addEventListener("click",()=>{player=null;screenStart()});
+}
+
+/* =====================================================================
+   ESPACE ORGANISATEUR — statistiques et exports
+   ===================================================================== */
+let adminPin = null, adminRows = [];
+document.getElementById("adminLink").addEventListener("click",()=>{clearInterval(timerId);screenAdminLogin()});
+
+function screenAdminLogin(err){
+  show(`
+    ${bar(["Espace","organisateur"])}
+    <div class="panel">
+      <form id="pinForm">
+        <label class="f" for="pin">Code PIN<input type="password" id="pin" autocomplete="off"></label>
+        ${err?`<div class="msg err" role="alert">${esc(err)}</div>`:""}
+        <div class="row"><button class="btn" type="submit">Voir les résultats</button><button class="btn ghost" type="button" id="back">Retour au quiz</button></div>
+        ${CONFIG.ENDPOINT?"":`<p class="hint">Version test : PIN <code>${esc(CONFIG.ADMIN_PIN)}</code>. Les résultats affichés sont ceux joués sur cet appareil.</p>`}
+      </form>
+    </div>`);
+  document.getElementById("back").addEventListener("click",()=>screenStart());
+  document.getElementById("pinForm").addEventListener("submit",async ev=>{
+    ev.preventDefault();
+    const pin = document.getElementById("pin").value;
+    try{ adminRows = await Store.list(pin); adminPin = pin; screenAdmin() }catch(e){ screenAdminLogin(e.message) }
+  });
+}
+
+function screenAdmin(note){
+  const rows = adminRows.slice().sort((a,b)=>b.score-a.score || a.dureeSec-b.dureeSec);
+  const n = rows.length;
+  const avg = n ? rows.reduce((s,r)=>s+r.score,0)/n : 0;
+  const perfect = rows.filter(r=>r.score===r.total).length;
+  const rate = QUESTIONS.map((Q,qi)=>{
+    let tot=0,ok=0; rows.forEach(r=>(r.reponses||[]).forEach(a=>{if(a.q===qi){tot++; if(a.ok) ok++}}));
+    return {Q, pct: tot? Math.round(ok/tot*100) : null};
+  });
+  show(`
+    ${bar(["Résultats","du concours ..."])}
+    <p><strong>${esc(CONFIG.CONCOURS_TITRE)}</strong> · ${esc(CONFIG.CONCOURS_ID)}</p>
+    ${note?`<div class="msg info" role="status">${esc(note)}</div>`:""}
+    <div class="panel">
+      <div class="stats">
+        <div class="stat"><b>${n}</b><span>Participations</span></div>
+        <div class="stat"><b>${n?avg.toFixed(1).replace(".",","):"–"}</b><span>Score moyen /${QUESTIONS.length}</span></div>
+        <div class="stat"><b>${perfect}</b><span>Scores parfaits</span></div>
+      </div>
+      <div class="row" style="margin-top:16px">
+        <button class="btn" type="button" id="xCsv" ${n?"":"disabled"}>Exporter en Excel (CSV)</button>
+        <button class="btn" type="button" id="xPdf" ${n?"":"disabled"}>Exporter en PDF</button>
+        <button class="btn ghost" type="button" id="refresh">Actualiser</button>
+      </div>
+    </div>
+    ${n?`
+    <h3>Classement</h3>
+    <div class="tablewrap"><table>
+      <thead><tr><th>#</th><th>Nom</th><th>Prénom</th><th>E-mail</th><th>N° membre</th><th>Score</th><th>Temps</th><th>Date</th></tr></thead>
+      <tbody>${rows.map((r,i)=>`<tr><td class="n">${i+1}</td><td>${esc(r.nom)}</td><td>${esc(r.prenom)}</td><td>${esc(r.email)}</td><td>${esc(r.code)}</td><td class="n">${r.score}/${r.total}</td><td class="n">${fmtTime(r.dureeSec)}</td><td>${fmtDate(r.date)}</td></tr>`).join("")}</tbody>
+    </table></div>
+    <h3>Taux de bonnes réponses par question</h3>
+    <div class="qrate panel" style="margin-top:0">
+      ${rate.map((x,i)=>`<div class="qr"><span class="t" title="${esc(x.Q.q)}">${i+1}. ${esc(x.Q.p)} · ${esc(x.Q.q)}</span><span class="track"><span class="fill" style="display:block;width:${x.pct??0}%"></span></span><span class="v">${x.pct===null?"–":x.pct+" %"}</span></div>`).join("")}
+    </div>`
+    :`<div class="panel"><p style="margin:0"><strong>Aucune participation pour l’instant.</strong> Les résultats apparaîtront ici dès qu’un membre aura terminé le quiz.</p></div>`}
+    <div class="row" style="margin-top:22px">
+      <button class="btn ghost" type="button" id="back">Retour au quiz</button>
+      ${!CONFIG.ENDPOINT && n?`<button class="btn danger" type="button" id="clear">Effacer les résultats de test</button>`:""}
+    </div>
+    <div id="confirmBox"></div>`);
+  document.getElementById("back").addEventListener("click",()=>screenStart());
+  document.getElementById("refresh").addEventListener("click",async()=>{try{adminRows=await Store.list(adminPin);screenAdmin()}catch(e){screenAdmin(e.message)}});
+  if(n){
+    document.getElementById("xCsv").addEventListener("click",()=>exportCsv(rows));
+    document.getElementById("xPdf").addEventListener("click",()=>exportPdf(rows,avg));
+  }
+  const clr = document.getElementById("clear");
+  if(clr) clr.addEventListener("click",()=>{
+    document.getElementById("confirmBox").innerHTML = `<div class="confirm" style="margin-top:12px"><strong>Effacer toutes les participations de test sur cet appareil ?</strong><div class="row"><button class="btn danger" type="button" id="yes">Oui, effacer</button><button class="btn ghost" type="button" id="no">Annuler</button></div></div>`;
+    document.getElementById("yes").addEventListener("click",()=>{Store.clearLocal();adminRows=[];screenAdmin("Résultats de test effacés.")});
+    document.getElementById("no").addEventListener("click",()=>{document.getElementById("confirmBox").innerHTML=""});
+  });
+}
+
+function stamp(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0") }
+
+async function exportCsv(rows){
+  const head = ["Rang","Nom","Prénom","E-mail","N° membre","Score","Total","Temps (s)","Date"].concat(QUESTIONS.map((q,i)=>"Q"+(i+1)+" "+q.p));
+  const cell = v => '"'+String(v??"").replace(/"/g,'""')+'"';
+  const lines = [head.map(cell).join(";")].concat(rows.map((r,i)=>{
+    const qs = QUESTIONS.map((_,qi)=>{const a=(r.reponses||[]).find(x=>x.q===qi); return a? (a.ok?"OK":"Faux") : ""});
+    return [i+1,r.nom,r.prenom,r.email,r.code,r.score,r.total,r.dureeSec,fmtDate(r.date)].concat(qs).map(cell).join(";");
+  }));
+  try{ await saveFile(`resultats-${CONFIG.CONCOURS_ID}-${stamp()}.csv`, "﻿"+lines.join("\r\n")); screenAdmin("Fichier CSV prêt. Il s’ouvre directement dans Excel.") }
+  catch(e){ if(e&&e.code!=="declined") screenAdmin("L’export n’est pas disponible ici.") }
+}
+
+async function exportPdf(rows,avg){
+  if(!window.jspdf){ return screenAdmin("Le module PDF n’a pas pu se charger. Utilisez l’export CSV.") }
+  const clean = s => String(s??"").replace(/œ/g,"oe").replace(/Œ/g,"OE").replace(/[’]/g,"'");
+  const doc = new window.jspdf.jsPDF({orientation:"landscape",unit:"mm",format:"a4"});
+  const W = 297, M = 14;
+  doc.setFillColor(0,159,227); doc.rect(M,M,120,11,"F");
+  doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(15);
+  doc.text(clean("Résultats · "+CONFIG.CONCOURS_TITRE),M+3,M+7.8);
+  doc.setTextColor(87,87,86); doc.setFont("helvetica","normal"); doc.setFontSize(9.5);
+  doc.text(clean(`${CONFIG.CONCOURS_ID}  ·  ${rows.length} participations  ·  score moyen ${avg.toFixed(1).replace(".",",")}/${QUESTIONS.length}  ·  export du ${new Date().toLocaleString("fr-FR")}`),M,M+18);
+  const cols = [["#",10],["Nom",38],["Prénom",34],["E-mail",72],["N° membre",30],["Score",20],["Temps",28],["Date",37]];
+  let y = M+26;
+  const header = ()=>{ doc.setFillColor(87,87,86); doc.rect(M,y-5,W-2*M,7,"F"); doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); let x=M+2; cols.forEach(([t,w])=>{doc.text(clean(t),x,y);x+=w}); y+=7; doc.setFont("helvetica","normal"); doc.setTextColor(87,87,86) };
+  header();
+  rows.forEach((r,i)=>{
+    if(y>200){ doc.addPage(); y=M+8; header() }
+    if(i%2===0){ doc.setFillColor(227,228,229); doc.rect(M,y-5,W-2*M,7,"F") }
+    const vals = [i+1,r.nom,r.prenom,r.email,r.code,r.score+"/"+r.total,fmtTime(r.dureeSec),fmtDate(r.date)];
+    let x=M+2; vals.forEach((v,k)=>{ const w=cols[k][1]; doc.text(doc.splitTextToSize(clean(v),w-3)[0]||"",x,y); x+=w }); y+=7;
+  });
+  try{ await saveFile(`resultats-${CONFIG.CONCOURS_ID}-${stamp()}.pdf`, doc.output("blob")); screenAdmin("Fichier PDF prêt.") }
+  catch(e){ if(e&&e.code!=="declined") screenAdmin("L’export n’est pas disponible ici.") }
+}
+
+screenStart();
+</script>
+</body>
+</html>
