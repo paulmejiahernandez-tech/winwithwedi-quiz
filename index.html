@@ -108,7 +108,7 @@ h2.q{font-weight:700;font-size:clamp(1.2rem,4.4vw,1.55rem);line-height:1.3;margi
 
 /* ---- Admin ---- */
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-@media (max-width:520px){.stats{grid-template-columns:1fr 1fr}}
+@media (max-width:520px){.stats{gap:6px}.stat{padding:10px}.stat b{font-size:1.35rem}.stat span{font-size:.68rem}}
 .stat{background:var(--white);padding:14px}
 .stat b{display:block;font-size:1.8rem;font-weight:900;color:var(--blue-ink);font-variant-numeric:tabular-nums;line-height:1.1}
 .stat span{font-size:.8rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
@@ -142,8 +142,25 @@ h3{font-weight:900;font-size:1.05rem;margin:22px 0 10px;color:var(--grey)}
 .result-msg{display:grid;gap:10px}
 .result-msg p{margin:0}
 .result-msg .lead{font-weight:900;font-size:1.15rem;color:var(--grey)}
-.confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:25}
-.confetti i{position:absolute;top:-40px;display:block}
+.res-grid{display:flex;flex-wrap:wrap;gap:12px}
+.res-sq{width:170px;aspect-ratio:1;max-width:100%;background:var(--blue);color:var(--white);display:grid;place-content:center;text-align:center;padding:10px}
+.res-sq.grey{background:var(--grey)}
+.res-sq b{font-size:2.5rem;line-height:1.05;font-weight:900;font-variant-numeric:tabular-nums}
+.res-sq span{font-weight:700;font-size:.85rem}
+@media (max-width:420px){.res-sq{width:calc(50% - 6px)}.res-sq b{font-size:1.8rem}}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.segbtn{font:inherit;font-weight:700;font-size:.9rem;border:2px solid var(--blue);border-radius:0;background:var(--white);color:var(--blue-ink);padding:8px 14px;cursor:pointer}
+.segbtn[aria-pressed="true"]{background:var(--blue);color:var(--white)}
+input[type=date]{font:inherit;font-weight:400;padding:10px;border:2px solid var(--line);background:var(--white);color:var(--grey);border-radius:0;width:100%}
+.period{margin:14px 0 12px;font-weight:900;color:var(--grey)}
+.podium{display:grid;gap:8px}
+.pod{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:12px;align-items:center;background:var(--grey-soft);padding:8px 12px 8px 8px}
+.pod .rk{width:44px;height:44px;display:grid;place-items:center;background:var(--blue);color:var(--white);font-weight:900;font-size:1.2rem}
+.pod strong{display:block;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pod small{display:block;font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pod .pv{text-align:right;font-weight:900;color:var(--blue-ink);font-variant-numeric:tabular-nums}
+.pod .pv small{font-weight:700;color:var(--grey)}
+tr.win td{font-weight:700;background:#E5F5FC}
 
 @media (prefers-reduced-motion:no-preference){
   .screen{animation:in .25s ease-out}
@@ -160,10 +177,9 @@ h3{font-weight:900;font-size:1.05rem;margin:22px 0 10px;color:var(--grey)}
   @keyframes up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
   @keyframes wipe{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
   @keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
-  .score{animation:pop .5s cubic-bezier(.3,1.6,.5,1) .15s both}
+  .res-sq{animation:pop .5s cubic-bezier(.3,1.6,.5,1) .15s both}
+  .res-sq.grey{animation-delay:.3s}
   .result-msg > *{animation:up .5s both;animation-delay:calc(.4s + var(--d,0) * .35s)}
-  .confetti i{animation:fall linear forwards}
-  @keyframes fall{to{transform:translateY(115vh)}}
 }
 </style>
 </head>
@@ -195,7 +211,7 @@ const CONFIG = {
   // Codes membres de démonstration (utilisés seulement quand ENDPOINT est vide).
   MEMBRES_DEMO: ["WEDI-1001","WEDI-1002","WEDI-1003","WEDI-1004","WEDI-1005"],
   ADMIN_PIN: "wedi2026",                  // version test uniquement ; en ligne, le PIN est vérifié par le script Google
-  SEUIL_GAGNANT: 0.6,                     // plus de 60 % de bonnes réponses = lot gagné
+  NB_GAGNANTS: 5,                         // les 5 meilleurs (score, puis temps le plus court) gagnent
   DUREE_INTRO_MS: 2600,                   // durée de l'écran d'annonce de chaque thème
   DUREE_FIN_MS: 3200                      // durée de l'animation "Quiz terminé"
 };
@@ -254,6 +270,7 @@ const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">
 const dots = s => esc(s).replace(/(\.\.\.|…)/g,'<span class="dots">...</span>');
 function bar(lines){ return '<h1 class="bar">'+lines.map(l=>'<span>'+dots(l)+'</span>').join("<br>")+'</h1>' }
 function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]} return a }
+const fmtClock = s => s<60 ? s+" s" : Math.floor(s/60)+" min "+String(s%60).padStart(2,"0")+" s";
 const fmtTime = s => Math.floor(s/60)+" min "+String(s%60).padStart(2,"0")+" s";
 const fmtDate = iso => new Date(iso).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"});
 function show(html){ $app.innerHTML = '<section class="screen">'+html+'</section>'; window.scrollTo(0,0) }
@@ -425,10 +442,10 @@ function finish(){
   // L'enregistrement part pendant l'animation de fin.
   const saving = Store.save(result).then(()=>true, ()=>false);
   overlay(`
-    <p class="eyebrow">${esc(CONFIG.CONCOURS_TITRE)}</p>
-    <p class="big"><span>Quiz terminé !</span></p>
+    <p class="eyebrow">Quiz terminé</p>
+    <p class="big"><span>Félicitations !</span></p>
     <div class="sq" aria-hidden="true">${state.answers.map((a,i)=>`<i class="${a.ok?"on":""}" style="--n:${i}"></i>`).join("")}</div>
-    <p class="meta">Merci pour votre participation, ${esc(player.prenom)}.</p>
+    <p class="meta">Vous avez répondu aux ${QUESTIONS.length} questions, ${esc(player.prenom)}. Merci pour votre participation.</p>
     <p class="skip">Calcul de votre résultat ...</p>`,
     CONFIG.DUREE_FIN_MS,
     async ()=>{ screenResult(result, await saving) });
@@ -437,38 +454,18 @@ function finish(){
 /* =====================================================================
    ÉCRAN 3 — résultat
    ===================================================================== */
-function confetti(){
-  if(reducedMotion()) return;
-  const box = document.createElement("div"); box.className = "confetti"; box.setAttribute("aria-hidden","true");
-  const colors = ["var(--blue)","var(--grey)","var(--blue-ink)","var(--grey-soft)"];
-  for(let i=0;i<46;i++){
-    const s = 8+Math.random()*12, el = document.createElement("i");
-    el.style.cssText = `left:${Math.random()*100}%;width:${s}px;height:${s}px;background:${colors[i%colors.length]};animation-duration:${2.2+Math.random()*2.2}s;animation-delay:${Math.random()*.9}s`;
-    box.appendChild(el);
-  }
-  document.body.appendChild(box);
-  setTimeout(()=>box.remove(), 5500);
-}
-
 function screenResult(r, saved){
-  const pct = Math.round(r.score/r.total*100);
-  const gagne = r.score/r.total > CONFIG.SEUIL_GAGNANT;
-  const seuil = Math.round(CONFIG.SEUIL_GAGNANT*100);
-  const titre = gagne ? ["Félicitations,", player.prenom+" !"] : ["Merci,", player.prenom+" !"];
-  const msg = gagne ? `
-      <p class="lead" style="--d:0">Bravo, vous avez gagné ! ${pct} % de bonnes réponses.</p>
-      <p style="--d:1">Merci pour votre participation. Votre lot sera envoyé à l’adresse enregistrée dans le programme de récompenses dans les meilleurs délais.</p>
-      <p style="--d:2">Vous recevrez un e-mail avec tous les détails.</p>`
-    : `
-      <p class="lead" style="--d:0">${pct} % de bonnes réponses : il en fallait plus de ${seuil} % pour gagner cette fois.</p>
-      <p style="--d:1">Merci pour votre participation. Nous sommes ravis de vous compter parmi les membres du programme Win with wedi.</p>
-      <p style="--d:2"><strong>Retentez votre chance lors du prochain quiz mensuel !</strong></p>`;
   show(`
-    ${bar(titre)}
-    <div class="panel result">
-      <div class="score"><b>${r.score}/${r.total}</b><span>${pct} %</span></div>
-      <div class="result-msg">${msg}
-        ${saved?"":`<p class="msg err" style="--d:3">Votre participation n’a pas pu être envoyée. Vérifiez votre connexion et prévenez l’organisateur : votre score est conservé sur cet appareil.</p>`}
+    ${bar(["Félicitations,", player.prenom+" !"])}
+    <div class="panel">
+      <div class="res-grid">
+        <div class="res-sq"><b>${r.score}/${r.total}</b><span>bonnes réponses</span></div>
+        <div class="res-sq grey"><b>${fmtClock(r.dureeSec)}</b><span>temps de réponse</span></div>
+      </div>
+      <div class="result-msg" style="margin-top:18px">
+        <p class="lead" style="--d:0">Vous avez terminé le quiz. Merci pour votre participation !</p>
+        <p style="--d:1">Les ${CONFIG.NB_GAGNANTS} participants avec le meilleur score remportent un lot ; à score égal, le plus rapide l’emporte. Les gagnants seront contactés par e-mail.</p>
+        ${saved?"":`<p class="msg err" style="--d:2">Votre participation n’a pas pu être envoyée. Vérifiez votre connexion et prévenez l’organisateur : votre score est conservé sur cet appareil.</p>`}
       </div>
     </div>
     <h3>Les bonnes réponses</h3>
@@ -477,13 +474,12 @@ function screenResult(r, saved){
     </div>
     <div class="row" style="margin-top:22px"><button class="btn ghost" type="button" id="again">Retour à l’accueil</button></div>`);
   document.getElementById("again").addEventListener("click",()=>{player=null;screenStart()});
-  if(gagne) confetti();
 }
 
 /* =====================================================================
-   ESPACE ORGANISATEUR — statistiques et exports
+   ESPACE ORGANISATEUR — classement, périodes et exports
    ===================================================================== */
-let adminPin = null, adminRows = [];
+let adminPin = null, adminRows = [], adminFilter = {mode:"week", from:"", to:""};
 document.getElementById("adminLink").addEventListener("click",()=>{clearInterval(timerId);screenAdminLogin()});
 
 function screenAdminLogin(err){
@@ -494,7 +490,7 @@ function screenAdminLogin(err){
         <label class="f" for="pin">Code PIN<input type="password" id="pin" autocomplete="off"></label>
         ${err?`<div class="msg err" role="alert">${esc(err)}</div>`:""}
         <div class="row"><button class="btn" type="submit">Voir les résultats</button><button class="btn ghost" type="button" id="back">Retour au quiz</button></div>
-        ${CONFIG.ENDPOINT?"":`<p class="hint">Version test : PIN <code>${esc(CONFIG.ADMIN_PIN)}</code>. Les résultats affichés sont ceux joués sur cet appareil.</p>`}
+        ${CONFIG.ENDPOINT?"":`<p class="hint">Version test : PIN <code>${esc(CONFIG.ADMIN_PIN)}</code>.</p>`}
       </form>
     </div>`);
   document.getElementById("back").addEventListener("click",()=>screenStart());
@@ -505,24 +501,55 @@ function screenAdminLogin(err){
   });
 }
 
+/* Classement : meilleur score d'abord, puis temps le plus court, puis participation la plus ancienne. */
+const rankSort = (a,b) => b.score-a.score || a.dureeSec-b.dureeSec || new Date(a.date)-new Date(b.date);
+const ymd = d => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const dmy = d => d.toLocaleDateString("fr-FR");
+
+function periodOf(f){
+  const now = new Date(), today = new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  if(f.mode==="day"){ const b=new Date(today); b.setDate(b.getDate()+1); return {from:today,to:b,label:"Aujourd’hui ("+dmy(today)+")",slug:"jour-"+ymd(today)} }
+  if(f.mode==="week"){ const a=new Date(today); a.setDate(a.getDate()-((a.getDay()+6)%7)); const b=new Date(a); b.setDate(a.getDate()+7); const last=new Date(b); last.setDate(b.getDate()-1);
+    return {from:a,to:b,label:"Semaine du "+dmy(a)+" au "+dmy(last),slug:"semaine-"+ymd(a)} }
+  if(f.mode==="month"){ const a=new Date(now.getFullYear(),now.getMonth(),1), b=new Date(now.getFullYear(),now.getMonth()+1,1);
+    const m=a.toLocaleDateString("fr-FR",{month:"long",year:"numeric"}); return {from:a,to:b,label:m.charAt(0).toUpperCase()+m.slice(1),slug:"mois-"+ymd(a).slice(0,7)} }
+  if(f.mode==="custom"){ const a=f.from?new Date(f.from+"T00:00"):null, b=f.to?new Date(f.to+"T00:00"):null; if(b) b.setDate(b.getDate()+1);
+    const A=f.from?dmy(new Date(f.from+"T00:00")):"", B=f.to?dmy(new Date(f.to+"T00:00")):"";
+    const label = A&&B ? "Du "+A+" au "+B : A ? "Depuis le "+A : B ? "Jusqu’au "+B : "Choisissez une date de début et/ou de fin";
+    return {from:a,to:b,label,slug:"du-"+(f.from||"debut")+"-au-"+(f.to||ymd(today))} }
+  return {from:null,to:null,label:"Toutes les participations",slug:"complet"};
+}
+
 function screenAdmin(note){
-  const rows = adminRows.slice().sort((a,b)=>b.score-a.score || a.dureeSec-b.dureeSec);
-  const n = rows.length;
+  const per = periodOf(adminFilter);
+  const rows = adminRows.filter(r=>{const d=new Date(r.date); return (!per.from||d>=per.from)&&(!per.to||d<per.to)}).sort(rankSort);
+  const n = rows.length, top = rows.slice(0, CONFIG.NB_GAGNANTS);
   const avg = n ? rows.reduce((s,r)=>s+r.score,0)/n : 0;
-  const perfect = rows.filter(r=>r.score===r.total).length;
+  const avgT = n ? Math.round(rows.reduce((s,r)=>s+r.dureeSec,0)/n) : 0;
   const rate = QUESTIONS.map((Q,qi)=>{
     let tot=0,ok=0; rows.forEach(r=>(r.reponses||[]).forEach(a=>{if(a.q===qi){tot++; if(a.ok) ok++}}));
     return {Q, pct: tot? Math.round(ok/tot*100) : null};
   });
+  const modes = [["day","Jour"],["week","Semaine"],["month","Mois"],["all","Tout"],["custom","Dates"]];
   show(`
     ${bar(["Résultats","du concours ..."])}
-    <p><strong>${esc(CONFIG.CONCOURS_TITRE)}</strong> · ${esc(CONFIG.CONCOURS_ID)}</p>
-    ${note?`<div class="msg info" role="status">${esc(note)}</div>`:""}
+    <p><strong>${esc(CONFIG.CONCOURS_TITRE)}</strong> · ${esc(CONFIG.CONCOURS_ID)} · ${adminRows.length} participation${adminRows.length>1?"s":""} au total</p>
+    ${CONFIG.ENDPOINT?"":`<div class="msg info">Version test : seules les participations jouées sur cet appareil apparaissent. Pour réunir les participants de tous les appareils, connectez la feuille Google (CONFIG.ENDPOINT).</div>`}
+    ${note?`<div class="msg info" role="status" style="margin-top:10px">${esc(note)}</div>`:""}
     <div class="panel">
+      <div class="seg" role="group" aria-label="Période">
+        ${modes.map(([m,l])=>`<button type="button" class="segbtn" data-mode="${m}" aria-pressed="${adminFilter.mode===m}">${l}</button>`).join("")}
+      </div>
+      ${adminFilter.mode==="custom"?`
+      <div class="grid2" style="margin-top:12px">
+        <label class="f" for="dFrom">Du<input type="date" id="dFrom" value="${esc(adminFilter.from)}"></label>
+        <label class="f" for="dTo">Au<input type="date" id="dTo" value="${esc(adminFilter.to)}"></label>
+      </div>`:""}
+      <p class="period">${esc(per.label)}</p>
       <div class="stats">
-        <div class="stat"><b>${n}</b><span>Participations</span></div>
+        <div class="stat"><b>${n}</b><span>Participants</span></div>
         <div class="stat"><b>${n?avg.toFixed(1).replace(".",","):"–"}</b><span>Score moyen /${QUESTIONS.length}</span></div>
-        <div class="stat"><b>${perfect}</b><span>Scores parfaits</span></div>
+        <div class="stat"><b>${n?fmtClock(avgT):"–"}</b><span>Temps moyen</span></div>
       </div>
       <div class="row" style="margin-top:16px">
         <button class="btn" type="button" id="xCsv" ${n?"":"disabled"}>Exporter en Excel (CSV)</button>
@@ -531,26 +558,34 @@ function screenAdmin(note){
       </div>
     </div>
     ${n?`
-    <h3>Classement</h3>
+    <h3>Top ${CONFIG.NB_GAGNANTS} · gagnants de la période</h3>
+    <div class="podium">
+      ${top.map((r,i)=>`<div class="pod"><span class="rk">${i+1}</span><div><strong>${esc(r.prenom)} ${esc(r.nom)}</strong><small>${esc(r.email)} · ${esc(r.code)}</small></div><span class="pv">${r.score}/${r.total}<small>${fmtClock(r.dureeSec)}</small></span></div>`).join("")}
+    </div>
+    <h3>Classement complet</h3>
     <div class="tablewrap"><table>
       <thead><tr><th>#</th><th>Nom</th><th>Prénom</th><th>E-mail</th><th>N° membre</th><th>Score</th><th>Temps</th><th>Date</th></tr></thead>
-      <tbody>${rows.map((r,i)=>`<tr><td class="n">${i+1}</td><td>${esc(r.nom)}</td><td>${esc(r.prenom)}</td><td>${esc(r.email)}</td><td>${esc(r.code)}</td><td class="n">${r.score}/${r.total}</td><td class="n">${fmtTime(r.dureeSec)}</td><td>${fmtDate(r.date)}</td></tr>`).join("")}</tbody>
+      <tbody>${rows.map((r,i)=>`<tr class="${i<CONFIG.NB_GAGNANTS?"win":""}"><td class="n">${i+1}</td><td>${esc(r.nom)}</td><td>${esc(r.prenom)}</td><td>${esc(r.email)}</td><td>${esc(r.code)}</td><td class="n">${r.score}/${r.total}</td><td class="n">${fmtClock(r.dureeSec)}</td><td>${fmtDate(r.date)}</td></tr>`).join("")}</tbody>
     </table></div>
     <h3>Taux de bonnes réponses par question</h3>
     <div class="qrate panel" style="margin-top:0">
       ${rate.map((x,i)=>`<div class="qr"><span class="t" title="${esc(x.Q.q)}">${i+1}. ${esc(x.Q.p)} · ${esc(x.Q.q)}</span><span class="track"><span class="fill" style="display:block;width:${x.pct??0}%"></span></span><span class="v">${x.pct===null?"–":x.pct+" %"}</span></div>`).join("")}
     </div>`
-    :`<div class="panel"><p style="margin:0"><strong>Aucune participation pour l’instant.</strong> Les résultats apparaîtront ici dès qu’un membre aura terminé le quiz.</p></div>`}
+    :`<div class="panel"><p style="margin:0"><strong>Aucune participation sur cette période.</strong> Choisissez une autre période ou attendez les premiers participants.</p></div>`}
     <div class="row" style="margin-top:22px">
       <button class="btn ghost" type="button" id="back">Retour au quiz</button>
-      ${!CONFIG.ENDPOINT && n?`<button class="btn danger" type="button" id="clear">Effacer les résultats de test</button>`:""}
+      ${!CONFIG.ENDPOINT && adminRows.length?`<button class="btn danger" type="button" id="clear">Effacer les résultats de test</button>`:""}
     </div>
     <div id="confirmBox"></div>`);
+  document.querySelectorAll(".segbtn").forEach(b=>b.addEventListener("click",()=>{adminFilter.mode=b.dataset.mode;screenAdmin()}));
+  const dF=document.getElementById("dFrom"), dT=document.getElementById("dTo");
+  if(dF) dF.addEventListener("change",()=>{adminFilter.from=dF.value;screenAdmin()});
+  if(dT) dT.addEventListener("change",()=>{adminFilter.to=dT.value;screenAdmin()});
   document.getElementById("back").addEventListener("click",()=>screenStart());
-  document.getElementById("refresh").addEventListener("click",async()=>{try{adminRows=await Store.list(adminPin);screenAdmin()}catch(e){screenAdmin(e.message)}});
+  document.getElementById("refresh").addEventListener("click",async()=>{try{adminRows=await Store.list(adminPin);screenAdmin("Résultats actualisés.")}catch(e){screenAdmin(e.message)}});
   if(n){
-    document.getElementById("xCsv").addEventListener("click",()=>exportCsv(rows));
-    document.getElementById("xPdf").addEventListener("click",()=>exportPdf(rows,avg));
+    document.getElementById("xCsv").addEventListener("click",()=>exportCsv(rows,per));
+    document.getElementById("xPdf").addEventListener("click",()=>exportPdf(rows,per,avg));
   }
   const clr = document.getElementById("clear");
   if(clr) clr.addEventListener("click",()=>{
@@ -560,40 +595,42 @@ function screenAdmin(note){
   });
 }
 
-function stamp(){ const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0") }
-
-async function exportCsv(rows){
-  const head = ["Rang","Nom","Prénom","E-mail","N° membre","Score","Total","Temps (s)","Date"].concat(QUESTIONS.map((q,i)=>"Q"+(i+1)+" "+q.p));
+async function exportCsv(rows, per){
+  const head = ["Rang","Gagnant","Nom","Prénom","E-mail","N° membre","Score","Total","Temps","Temps (s)","Date"].concat(QUESTIONS.map((q,i)=>"Q"+(i+1)+" "+q.p));
   const cell = v => '"'+String(v??"").replace(/"/g,'""')+'"';
-  const lines = [head.map(cell).join(";")].concat(rows.map((r,i)=>{
+  const lines = [cell(CONFIG.CONCOURS_TITRE+" · "+per.label)].concat([head.map(cell).join(";")]).concat(rows.map((r,i)=>{
     const qs = QUESTIONS.map((_,qi)=>{const a=(r.reponses||[]).find(x=>x.q===qi); return a? (a.ok?"OK":"Faux") : ""});
-    return [i+1,r.nom,r.prenom,r.email,r.code,r.score,r.total,r.dureeSec,fmtDate(r.date)].concat(qs).map(cell).join(";");
+    return [i+1,i<CONFIG.NB_GAGNANTS?"Oui":"",r.nom,r.prenom,r.email,r.code,r.score,r.total,fmtClock(r.dureeSec),r.dureeSec,fmtDate(r.date)].concat(qs).map(cell).join(";");
   }));
-  try{ await saveFile(`resultats-${CONFIG.CONCOURS_ID}-${stamp()}.csv`, "﻿"+lines.join("\r\n")); screenAdmin("Fichier CSV prêt. Il s’ouvre directement dans Excel.") }
+  try{ await saveFile(`resultats-${CONFIG.CONCOURS_ID}-${per.slug}.csv`, "﻿"+lines.join("\r\n")); screenAdmin("Fichier CSV prêt. Il s’ouvre directement dans Excel.") }
   catch(e){ if(e&&e.code!=="declined") screenAdmin("L’export n’est pas disponible ici.") }
 }
 
-async function exportPdf(rows,avg){
+async function exportPdf(rows, per, avg){
   if(!window.jspdf){ return screenAdmin("Le module PDF n’a pas pu se charger. Utilisez l’export CSV.") }
   const clean = s => String(s??"").replace(/œ/g,"oe").replace(/Œ/g,"OE").replace(/[’]/g,"'");
   const doc = new window.jspdf.jsPDF({orientation:"landscape",unit:"mm",format:"a4"});
   const W = 297, M = 14;
-  doc.setFillColor(0,159,227); doc.rect(M,M,120,11,"F");
+  doc.setFillColor(0,159,227); doc.rect(M,M,150,11,"F");
   doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); doc.setFontSize(15);
   doc.text(clean("Résultats · "+CONFIG.CONCOURS_TITRE),M+3,M+7.8);
-  doc.setTextColor(87,87,86); doc.setFont("helvetica","normal"); doc.setFontSize(9.5);
-  doc.text(clean(`${CONFIG.CONCOURS_ID}  ·  ${rows.length} participations  ·  score moyen ${avg.toFixed(1).replace(".",",")}/${QUESTIONS.length}  ·  export du ${new Date().toLocaleString("fr-FR")}`),M,M+18);
-  const cols = [["#",10],["Nom",38],["Prénom",34],["E-mail",72],["N° membre",30],["Score",20],["Temps",28],["Date",37]];
-  let y = M+26;
+  doc.setTextColor(87,87,86); doc.setFont("helvetica","bold"); doc.setFontSize(11);
+  doc.text(clean(per.label),M,M+19);
+  doc.setFont("helvetica","normal"); doc.setFontSize(9.5);
+  doc.text(clean(`${CONFIG.CONCOURS_ID}  ·  ${rows.length} participants  ·  score moyen ${avg.toFixed(1).replace(".",",")}/${QUESTIONS.length}  ·  gagnants : les ${CONFIG.NB_GAGNANTS} premiers (score, puis temps)  ·  export du ${new Date().toLocaleString("fr-FR")}`),M,M+25);
+  const cols = [["#",10],["Gagnant",20],["Nom",34],["Prénom",30],["E-mail",64],["N° membre",28],["Score",18],["Temps",22],["Date",34]];
+  let y = M+33;
   const header = ()=>{ doc.setFillColor(87,87,86); doc.rect(M,y-5,W-2*M,7,"F"); doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); let x=M+2; cols.forEach(([t,w])=>{doc.text(clean(t),x,y);x+=w}); y+=7; doc.setFont("helvetica","normal"); doc.setTextColor(87,87,86) };
   header();
   rows.forEach((r,i)=>{
     if(y>200){ doc.addPage(); y=M+8; header() }
-    if(i%2===0){ doc.setFillColor(227,228,229); doc.rect(M,y-5,W-2*M,7,"F") }
-    const vals = [i+1,r.nom,r.prenom,r.email,r.code,r.score+"/"+r.total,fmtTime(r.dureeSec),fmtDate(r.date)];
+    const win = i<CONFIG.NB_GAGNANTS;
+    if(win){ doc.setFillColor(204,236,249); doc.rect(M,y-5,W-2*M,7,"F") } else if(i%2===0){ doc.setFillColor(227,228,229); doc.rect(M,y-5,W-2*M,7,"F") }
+    doc.setFont("helvetica", win?"bold":"normal");
+    const vals = [i+1,win?"Oui":"",r.nom,r.prenom,r.email,r.code,r.score+"/"+r.total,fmtClock(r.dureeSec),fmtDate(r.date)];
     let x=M+2; vals.forEach((v,k)=>{ const w=cols[k][1]; doc.text(doc.splitTextToSize(clean(v),w-3)[0]||"",x,y); x+=w }); y+=7;
   });
-  try{ await saveFile(`resultats-${CONFIG.CONCOURS_ID}-${stamp()}.pdf`, doc.output("blob")); screenAdmin("Fichier PDF prêt.") }
+  try{ await saveFile(`resultats-${CONFIG.CONCOURS_ID}-${per.slug}.pdf`, doc.output("blob")); screenAdmin("Fichier PDF prêt.") }
   catch(e){ if(e&&e.code!=="declined") screenAdmin("L’export n’est pas disponible ici.") }
 }
 
