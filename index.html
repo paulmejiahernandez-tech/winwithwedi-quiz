@@ -127,7 +127,44 @@ h3{font-weight:900;font-size:1.05rem;margin:22px 0 10px;color:var(--grey)}
 .foot{margin-top:34px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:.8rem}
 .linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--grey);text-decoration:underline;cursor:pointer}
 .confirm{background:var(--white);border:2px solid var(--ko);padding:12px;display:grid;gap:10px}
-@media (prefers-reduced-motion:no-preference){.screen{animation:in .25s ease-out}@keyframes in{from{transform:translateY(6px)}to{transform:none}}}
+/* ---- Écrans animés : intro de thème et fin du quiz ---- */
+.overlay{position:fixed;inset:0;z-index:30;background:var(--blue);color:var(--white);display:flex;align-items:center;cursor:pointer;overflow:hidden;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.overlay .inner{width:100%;max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:18px}
+.overlay .eyebrow{margin:0;font-weight:700;font-size:.9rem;letter-spacing:.1em;text-transform:uppercase}
+.overlay .big{margin:0;font-weight:900;font-size:clamp(2.6rem,13vw,5.6rem);line-height:1.08;text-wrap:balance}
+.overlay .big span{background:var(--white);color:var(--blue);padding:.02em .22em;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.overlay .meta{margin:0;font-weight:700;font-size:1.05rem}
+.overlay .sq{display:flex;flex-wrap:wrap;gap:10px}
+.overlay .sq i{width:26px;height:26px;border:3px solid var(--white);display:block}
+.overlay .sq i.on{background:var(--white)}
+.overlay .skip{font-size:.78rem;opacity:.8;margin:0}
+.result-msg{display:grid;gap:10px}
+.result-msg p{margin:0}
+.result-msg .lead{font-weight:900;font-size:1.15rem;color:var(--grey)}
+.confetti{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:25}
+.confetti i{position:absolute;top:-40px;display:block}
+
+@media (prefers-reduced-motion:no-preference){
+  .screen{animation:in .25s ease-out}
+  @keyframes in{from{transform:translateY(6px)}to{transform:none}}
+  .overlay{animation:ovIn .45s cubic-bezier(.2,.8,.2,1) both}
+  .overlay.out{animation:ovOut .45s cubic-bezier(.6,0,.8,.2) both}
+  @keyframes ovIn{from{transform:translateX(-100%)}to{transform:none}}
+  @keyframes ovOut{to{transform:translateY(-100%)}}
+  .overlay .eyebrow{animation:up .4s .35s both}
+  .overlay .big{animation:wipe .6s cubic-bezier(.2,.8,.2,1) .5s both}
+  .overlay .meta{animation:up .4s 1s both}
+  .overlay .sq i{animation:pop .35s cubic-bezier(.3,1.6,.5,1) both;animation-delay:calc(.9s + var(--n,0) * .12s)}
+  .overlay .skip{animation:up .4s 1.4s both}
+  @keyframes up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @keyframes wipe{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+  @keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+  .score{animation:pop .5s cubic-bezier(.3,1.6,.5,1) .15s both}
+  .result-msg > *{animation:up .5s both;animation-delay:calc(.4s + var(--d,0) * .35s)}
+  .confetti i{animation:fall linear forwards}
+  @keyframes fall{to{transform:translateY(115vh)}}
+}
 </style>
 </head>
 <body>
@@ -157,7 +194,10 @@ const CONFIG = {
   ENDPOINT: "",
   // Codes membres de démonstration (utilisés seulement quand ENDPOINT est vide).
   MEMBRES_DEMO: ["WEDI-1001","WEDI-1002","WEDI-1003","WEDI-1004","WEDI-1005"],
-  ADMIN_PIN: "wedi2026"                   // version test uniquement ; en ligne, le PIN est vérifié par le script Google
+  ADMIN_PIN: "wedi2026",                  // version test uniquement ; en ligne, le PIN est vérifié par le script Google
+  SEUIL_GAGNANT: 0.6,                     // plus de 60 % de bonnes réponses = lot gagné
+  DUREE_INTRO_MS: 2600,                   // durée de l'écran d'annonce de chaque thème
+  DUREE_FIN_MS: 3200                      // durée de l'animation "Quiz terminé"
 };
 
 const QUESTIONS = [
@@ -291,11 +331,52 @@ async function onStart(ev){
 /* =====================================================================
    ÉCRAN 2 — quiz
    ===================================================================== */
+const THEMES = [...new Set(QUESTIONS.map(q=>q.p))];
+const reducedMotion = () => { try{ return matchMedia("(prefers-reduced-motion: reduce)").matches }catch(e){ return false } };
+
+/* Affiche un écran animé plein écran, puis appelle done(). Un clic permet de passer. */
+function overlay(html, ms, done){
+  const el = document.createElement("div");
+  el.className = "overlay"; el.setAttribute("role","status"); el.setAttribute("aria-live","polite");
+  el.innerHTML = '<div class="inner">'+html+'</div>';
+  document.body.appendChild(el);
+  let over = false;
+  const end = () => {
+    if(over) return; over = true; clearTimeout(t);
+    if(reducedMotion()){ el.remove(); done(); return }
+    el.classList.add("out");
+    setTimeout(()=>{ el.remove(); done() }, 430);
+  };
+  const t = setTimeout(end, ms);
+  el.addEventListener("click", end);
+}
+
+function squares(n, onCount){
+  return '<div class="sq" aria-hidden="true">'+Array.from({length:n},(_,i)=>`<i class="${i<onCount?"on":""}" style="--n:${i}"></i>`).join("")+'</div>';
+}
+
 function startQuiz(){
-  state = {i:0, answers:[], start:Date.now(), order:QUESTIONS.map((q,idx)=>({idx, opts:shuffle(q.o.map((t,k)=>({t,k})))}))};
+  state = {i:0, answers:[], start:Date.now(), paused:false, order:QUESTIONS.map((q,idx)=>({idx, opts:shuffle(q.o.map((t,k)=>({t,k})))}))};
   clearInterval(timerId);
-  timerId = setInterval(()=>{const t=document.getElementById("timer"); if(t) t.textContent = fmtTime(Math.round((Date.now()-state.start)/1000))},1000);
-  renderQuestion();
+  timerId = setInterval(()=>{ if(state.paused) return; const t=document.getElementById("timer"); if(t) t.textContent = fmtTime(Math.round((Date.now()-state.start)/1000)) },1000);
+  nextStep();
+}
+
+/* Avant chaque question : si le thème change, on l'annonce. Le chrono est mis en pause pendant l'annonce. */
+function nextStep(){
+  const p = QUESTIONS[state.order[state.i].idx].p;
+  const prev = state.i>0 ? QUESTIONS[state.order[state.i-1].idx].p : null;
+  if(p===prev) return renderQuestion();
+  const n = THEMES.indexOf(p), count = QUESTIONS.filter(q=>q.p===p).length;
+  const t0 = Date.now(); state.paused = true;
+  overlay(`
+    <p class="eyebrow">Thème ${n+1} / ${THEMES.length}</p>
+    <p class="big"><span>${dots(p)}</span></p>
+    ${squares(THEMES.length, n+1)}
+    <p class="meta">${count} questions</p>
+    <p class="skip">Touchez l’écran pour commencer</p>`,
+    CONFIG.DUREE_INTRO_MS,
+    ()=>{ state.start += Date.now()-t0; state.paused = false; renderQuestion() });
 }
 
 function renderQuestion(){
@@ -326,12 +407,12 @@ function answer(k){
   const last = state.i===QUESTIONS.length-1;
   document.getElementById("fb").innerHTML = `
     <div class="fb ${ok?"ok":"ko"}" role="status"><strong>${ok?"Bonne réponse !":"Pas tout à fait."}</strong>${esc(Q.e)}</div>
-    <div class="row" style="margin-top:14px"><button class="btn" type="button" id="next">${last?"Voir mon score":"Question suivante"}</button></div>`;
+    <div class="row" style="margin-top:14px"><button class="btn" type="button" id="next">${last?"Terminer le quiz":"Question suivante"}</button></div>`;
   const nx = document.getElementById("next"); nx.focus();
-  nx.addEventListener("click", ()=>{ if(last) finish(); else { state.i++; renderQuestion() } });
+  nx.addEventListener("click", ()=>{ if(last) finish(); else { state.i++; nextStep() } });
 }
 
-async function finish(){
+function finish(){
   clearInterval(timerId);
   const score = state.answers.filter(a=>a.ok).length;
   const result = {
@@ -341,25 +422,53 @@ async function finish(){
     date: new Date().toISOString(),
     reponses: state.answers.map(a=>({q:a.q, choix:a.choix, ok:a.ok}))
   };
-  show(`<div class="panel"><p class="msg info">Enregistrement de votre participation ...</p></div>`);
-  let saved = true;
-  try{ await Store.save(result) }catch(e){ saved = false }
-  screenResult(result, saved);
+  // L'enregistrement part pendant l'animation de fin.
+  const saving = Store.save(result).then(()=>true, ()=>false);
+  overlay(`
+    <p class="eyebrow">${esc(CONFIG.CONCOURS_TITRE)}</p>
+    <p class="big"><span>Quiz terminé !</span></p>
+    <div class="sq" aria-hidden="true">${state.answers.map((a,i)=>`<i class="${a.ok?"on":""}" style="--n:${i}"></i>`).join("")}</div>
+    <p class="meta">Merci pour votre participation, ${esc(player.prenom)}.</p>
+    <p class="skip">Calcul de votre résultat ...</p>`,
+    CONFIG.DUREE_FIN_MS,
+    async ()=>{ screenResult(result, await saving) });
 }
 
 /* =====================================================================
    ÉCRAN 3 — résultat
    ===================================================================== */
+function confetti(){
+  if(reducedMotion()) return;
+  const box = document.createElement("div"); box.className = "confetti"; box.setAttribute("aria-hidden","true");
+  const colors = ["var(--blue)","var(--grey)","var(--blue-ink)","var(--grey-soft)"];
+  for(let i=0;i<46;i++){
+    const s = 8+Math.random()*12, el = document.createElement("i");
+    el.style.cssText = `left:${Math.random()*100}%;width:${s}px;height:${s}px;background:${colors[i%colors.length]};animation-duration:${2.2+Math.random()*2.2}s;animation-delay:${Math.random()*.9}s`;
+    box.appendChild(el);
+  }
+  document.body.appendChild(box);
+  setTimeout(()=>box.remove(), 5500);
+}
+
 function screenResult(r, saved){
-  const pct = r.score/r.total;
-  const lines = pct===1 ? ["Score parfait,", player.prenom+" !"] : pct>=.75 ? ["Bravo", player.prenom+" !"] : pct>=.5 ? ["Bien joué", player.prenom+" ..."] : ["Merci", player.prenom+" ..."];
+  const pct = Math.round(r.score/r.total*100);
+  const gagne = r.score/r.total > CONFIG.SEUIL_GAGNANT;
+  const seuil = Math.round(CONFIG.SEUIL_GAGNANT*100);
+  const titre = gagne ? ["Félicitations,", player.prenom+" !"] : ["Merci,", player.prenom+" !"];
+  const msg = gagne ? `
+      <p class="lead" style="--d:0">Bravo, vous avez gagné ! ${pct} % de bonnes réponses.</p>
+      <p style="--d:1">Merci pour votre participation. Votre lot sera envoyé à l’adresse enregistrée dans le programme de récompenses dans les meilleurs délais.</p>
+      <p style="--d:2">Vous recevrez un e-mail avec tous les détails.</p>`
+    : `
+      <p class="lead" style="--d:0">${pct} % de bonnes réponses : il en fallait plus de ${seuil} % pour gagner cette fois.</p>
+      <p style="--d:1">Merci pour votre participation. Nous sommes ravis de vous compter parmi les membres du programme Win with wedi.</p>
+      <p style="--d:2"><strong>Retentez votre chance lors du prochain quiz mensuel !</strong></p>`;
   show(`
-    ${bar(lines)}
+    ${bar(titre)}
     <div class="panel result">
-      <div class="score"><b>${r.score}/${r.total}</b><span>en ${fmtTime(r.dureeSec)}</span></div>
-      <div>
-        <p style="margin:0"><strong>${saved?"Votre participation est enregistrée.":"Votre participation n’a pas pu être envoyée."}</strong>
-        ${saved?`Les gagnants des ${esc(CONFIG.LOT)} seront contactés par e-mail. En cas d’égalité, le temps de réponse départage les participants.`:"Vérifiez votre connexion et prévenez l’organisateur : votre score est conservé sur cet appareil."}</p>
+      <div class="score"><b>${r.score}/${r.total}</b><span>${pct} %</span></div>
+      <div class="result-msg">${msg}
+        ${saved?"":`<p class="msg err" style="--d:3">Votre participation n’a pas pu être envoyée. Vérifiez votre connexion et prévenez l’organisateur : votre score est conservé sur cet appareil.</p>`}
       </div>
     </div>
     <h3>Les bonnes réponses</h3>
@@ -368,6 +477,7 @@ function screenResult(r, saved){
     </div>
     <div class="row" style="margin-top:22px"><button class="btn ghost" type="button" id="again">Retour à l’accueil</button></div>`);
   document.getElementById("again").addEventListener("click",()=>{player=null;screenStart()});
+  if(gagne) confetti();
 }
 
 /* =====================================================================
