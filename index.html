@@ -56,6 +56,10 @@ form{display:grid;gap:14px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media (max-width:520px){.grid2{grid-template-columns:1fr}}
 label.f{display:grid;gap:4px;font-weight:700;font-size:.9rem}
+/* Écran d'accueil : champ e-mail et bouton de même largeur et de même hauteur */
+.start-field input[type=email],.btn.btn-start{height:60px;width:100%;max-width:520px}
+.start-field input[type=email]{font-size:1.05rem;padding:0 16px}
+.btn.btn-start{justify-self:stretch;max-width:520px;padding:0 22px;font-size:1.15rem}
 input[type=text],input[type=email],input[type=password]{font:inherit;font-weight:400;padding:12px;border:2px solid var(--line);background:var(--white);color:var(--grey);border-radius:0;width:100%}
 input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 .check{display:flex;gap:10px;align-items:flex-start;font-size:.88rem}
@@ -217,7 +221,7 @@ const CONFIG = {
   // URL du script Google (voir apps-script.gs). Vide = version test : données gardées sur l'appareil.
   ENDPOINT: "https://script.google.com/macros/s/AKfycbwasGVy3WT8qtCBxKpfkElMWkfuHBjRF9TR84hUWqY5rBhdBVQmoRzAi_EY6e3oMsVE_Q/exec",
   // Codes membres de démonstration (utilisés seulement quand ENDPOINT est vide).
-  MEMBRES_DEMO: ["WEDI-1001","WEDI-1002","WEDI-1003","WEDI-1004","WEDI-1005"],
+  MEMBRES_DEMO: ["test1@wedi.test","test2@wedi.test","test3@wedi.test","test4@wedi.test","test5@wedi.test"],
   ADMIN_PIN: "wedi2026",                  // version test uniquement ; en ligne, le PIN est vérifié par le script Google
   NB_GAGNANTS: 5,                         // les 5 meilleurs (score, puis temps le plus court) gagnent
   DUREE_INTRO_MS: 3000,                   // durée de l'écran d'annonce de chaque thème
@@ -251,10 +255,10 @@ async function api(action, payload){
   return r.json();
 }
 const Store = {
-  async checkMember(code,email){
-    if(CONFIG.ENDPOINT) return api("check",{code,email});
-    if(!CONFIG.MEMBRES_DEMO.includes(code)) return {ok:false,reason:"unknown"};
-    if(lsRead().some(r=>r.concours===CONFIG.CONCOURS_ID && r.code===code)) return {ok:false,reason:"played"};
+  async checkMember(email){
+    if(CONFIG.ENDPOINT) return api("check",{email});
+    if(!CONFIG.MEMBRES_DEMO.includes(email)) return {ok:false,reason:"unknown"};
+    if(lsRead().some(r=>r.concours===CONFIG.CONCOURS_ID && r.email===email)) return {ok:false,reason:"played"};
     return {ok:true};
   },
   async save(result){
@@ -311,44 +315,35 @@ function screenStart(err){
     </div>
     <div class="panel">
       <form id="startForm" novalidate>
-        <div class="grid2">
-          <label class="f" for="prenom">Prénom<input type="text" id="prenom" autocomplete="given-name" required></label>
-          <label class="f" for="nom">Nom<input type="text" id="nom" autocomplete="family-name" required></label>
-        </div>
-        <div class="grid2">
-          <label class="f" for="email">E-mail<input type="email" id="email" autocomplete="email" required></label>
-          <label class="f" for="code">N° de membre<input type="text" id="code" autocomplete="off" placeholder="WEDI-0000" required></label>
-        </div>
+        <label class="f start-field" for="email">E-mail de votre compte membre
+          <input type="email" id="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="prenom.nom@exemple.fr" required></label>
         <label class="check" for="rgpd"><input type="checkbox" id="rgpd">
-          <span>J’accepte que wedi enregistre mon nom, mon e-mail, mon n° de membre et mon score pour organiser ce concours et attribuer les lots. Ces données ne sont pas utilisées à d’autres fins.</span></label>
+          <span>J’accepte que wedi enregistre mon e-mail et mon score, associés à mon compte membre, pour organiser ce concours et attribuer les lots. Ces données ne sont pas utilisées à d’autres fins.</span></label>
         <label class="check" for="reglement"><input type="checkbox" id="reglement">
           <span>Je confirme être membre du programme de récompenses et j’accepte le règlement du concours (une participation par membre).</span></label>
         ${err?`<div class="msg err" role="alert">${esc(err)}</div>`:""}
-        <button class="btn" type="submit" id="goBtn">Commencer le quiz</button>
-        ${CONFIG.ENDPOINT?"":`<p class="hint">Version test : utilisez un code de démonstration, par exemple <code>WEDI-1001</code> à <code>WEDI-1005</code>.</p>`}
+        <button class="btn btn-start" type="submit" id="goBtn">Commencer le quiz</button>
+        ${CONFIG.ENDPOINT?"":`<p class="hint">Version test : utilisez une adresse de démonstration, par exemple <code>test1@wedi.test</code> à <code>test5@wedi.test</code>.</p>`}
       </form>
     </div>`);
-  if(player){ for(const k of ["prenom","nom","email","code"]) document.getElementById(k).value = player[k]||"" }
+  if(player) document.getElementById("email").value = player.email||"";
   document.getElementById("startForm").addEventListener("submit", onStart);
 }
 
 async function onStart(ev){
   ev.preventDefault();
   const v = id => document.getElementById(id).value.trim();
-  player = {prenom:v("prenom"), nom:v("nom"), email:v("email").toLowerCase(), code:v("code").toUpperCase()};
-  if(!player.prenom||!player.nom) return screenStart("Indiquez votre prénom et votre nom.");
+  player = {email:v("email").toLowerCase(), prenom:"", nom:"", code:""};
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(player.email)) return screenStart("Indiquez une adresse e-mail valide.");
-  if(!player.code) return screenStart("Indiquez votre numéro de membre.");
   if(!document.getElementById("rgpd").checked||!document.getElementById("reglement").checked) return screenStart("Cochez les deux cases pour participer.");
   const btn = document.getElementById("goBtn"); btn.disabled = true; btn.textContent = "Vérification ...";
   try{
-    const r = await Store.checkMember(player.code, player.email);
+    const r = await Store.checkMember(player.email);
     if(!r.ok){
-      return screenStart(r.reason==="played" ? "Ce numéro de membre a déjà participé à ce concours."
-        : r.reason==="email" ? "Cet e-mail ne correspond pas au numéro de membre."
-        : "Numéro de membre introuvable. Ce concours est réservé aux membres inscrits au programme de récompenses.");
+      return screenStart(r.reason==="played" ? "Cette adresse e-mail a déjà participé à ce concours."
+        : "Adresse e-mail introuvable. Ce concours est réservé aux membres du programme de récompenses : utilisez l’e-mail de votre compte membre.");
     }
-    if(r.prenom && !player.prenom) player.prenom = r.prenom;
+    player.prenom = r.prenom||""; player.nom = r.nom||""; player.code = r.code||"";
     await settleViewport();
     startQuiz();
   }catch(e){ screenStart("Connexion impossible. Vérifiez votre réseau et réessayez.") }
@@ -469,7 +464,7 @@ function finish(){
     <p class="eyebrow">Quiz terminé</p>
     <p class="big"><span>Félicitations !</span></p>
     <div class="sq" aria-hidden="true">${state.answers.map((a,i)=>`<i class="${a.ok?"on":""}" style="--n:${i}"></i>`).join("")}</div>
-    <p class="meta">Vous avez répondu aux ${QUESTIONS.length} questions, ${esc(player.prenom)}. Merci pour votre participation.</p>`,
+    <p class="meta">Vous avez répondu aux ${QUESTIONS.length} questions${player.prenom?", "+esc(player.prenom):""}. Merci pour votre participation.</p>`,
     CONFIG.DUREE_FIN_MS,
     async ()=>{ screenResult(result, await saving) });
   confetti();
@@ -526,7 +521,7 @@ function confetti(){
 
 function screenResult(r, saved){
   show(`
-    ${bar(["Félicitations,", player.prenom+" !"])}
+    ${bar(player.prenom ? ["Félicitations,", player.prenom+" !"] : ["Félicitations !"])}
     <div class="panel">
       <div class="res-grid">
         <div class="res-sq"><b>${r.score}/${r.total}</b><span>bonnes réponses</span></div>

@@ -12,7 +12,8 @@ Fonctionne sur ordinateur, tablette et mobile. Charte graphique : CD wedi (wedi 
 
 ## Modes
 
-- **Version test** (`CONFIG.ENDPOINT` vide) : codes membres de démonstration `WEDI-1001` à `WEDI-1005`, résultats stockés dans le navigateur. Espace organisateur : PIN `wedi2026`.
+- **Identification** : le participant saisit uniquement l'e-mail de son compte membre. Il doit figurer dans la colonne Email de l'onglet `Membres` ; le nom et le code du membre sont repris de cette liste.
+- **Version test** (`CONFIG.ENDPOINT` vide) : e-mails de démonstration `test1@wedi.test` à `test5@wedi.test`, résultats stockés dans le navigateur. Espace organisateur : PIN `wedi2026`.
 - **Production** : renseigner `CONFIG.ENDPOINT` avec l'URL de l'application Web Apps Script. Les membres et les résultats sont dans la feuille Google (onglets `Membres` et `Resultats`). Le PIN réel est défini dans Apps Script, jamais dans ce dépôt.
 
 ## Modifier
