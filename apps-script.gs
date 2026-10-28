@@ -2,24 +2,22 @@
  * Quiz wedi — serveur Google Apps Script
  * --------------------------------------
  * Ce script relie le quiz (winwithwedi.net) à une feuille Google Sheets.
- * Le participant s'identifie uniquement avec son adresse e-mail :
- * le script vérifie qu'elle figure dans la liste des membres, empêche une
- * 2e participation, recalcule le score côté serveur (anti-triche) et
- * enregistre le résultat avec le nom et le code du membre.
+ * Concours ouvert : n'importe quelle adresse e-mail peut participer, une seule fois par concours.
+ * Le script bloque une 2e participation avec la même adresse, recalcule le score
+ * côté serveur (anti-triche) et enregistre le résultat dans l'onglet "Resultats".
  *
  * Installation :
- * 1. Feuille Google Sheets avec deux onglets :
- *    - "Membres"   colonnes : Code | Email | Prénom | Nom   (1 ligne par membre inscrit ; Email obligatoire)
- *    - "Resultats" (laissé vide, les en-têtes sont créés automatiquement)
+ * 1. Feuille Google Sheets avec un onglet "Resultats" (créé automatiquement s'il manque).
  * 2. Extensions > Apps Script : remplacez TOUT le contenu de l'éditeur par ce fichier, enregistrez.
- * 3. Modifiez ADMIN_PIN et, pour chaque concours, la clé de réponses REPONSES.
+ * 3. Modifiez ADMIN_PIN ICI, dans l'éditeur Apps Script (jamais dans le dépôt GitHub, qui est public),
+ *    et, pour chaque concours, la clé de réponses REPONSES.
  * 4. Déployer > Nouveau déploiement > Type "Application Web"
  *    Exécuter en tant que : Moi · Accès : Tout le monde.
  *    (Après chaque modification : Gérer les déploiements > crayon > Version : Nouvelle version.)
  * 5. Copiez l'URL obtenue dans CONFIG.ENDPOINT du fichier index.html.
  */
 
-const ADMIN_PIN = "wedi2026";
+const ADMIN_PIN = "changez-moi";
 
 // Index de la bonne réponse (0 = A, 1 = B, 2 = C) pour chaque question, par concours.
 const REPONSES = {
@@ -48,11 +46,9 @@ function normEmail_(v) {
 
 function check_(b) {
   const email = normEmail_(b.email);
-  if (!email) return { ok: false, reason: "unknown" };
-  const member = findMember_(email);
-  if (!member) return { ok: false, reason: "unknown" };
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { ok: false, reason: "email" };
   if (hasPlayed_(b.concours, email)) return { ok: false, reason: "played" };
-  return { ok: true, prenom: member.prenom, nom: member.nom, code: member.code };
+  return { ok: true };
 }
 
 function submit_(b) {
@@ -69,7 +65,7 @@ function submit_(b) {
     });
     const score = reponses.filter(function (a) { return a.ok; }).length;
     sheet_("Resultats").appendRow([
-      new Date(), b.concours, c.code, c.prenom, c.nom, email,
+      new Date(), b.concours, "", "", "", email,
       score, key.length, Number(r.dureeSec) || 0, JSON.stringify(reponses)
     ]);
     return { ok: true, score: score };
@@ -90,16 +86,6 @@ function list_(b) {
       };
     });
   return { ok: true, results: results };
-}
-
-function findMember_(email) {
-  const rows = sheet_("Membres").getDataRange().getValues().slice(1);
-  for (var i = 0; i < rows.length; i++) {
-    if (normEmail_(rows[i][1]) === email) {
-      return { code: String(rows[i][0] || "").trim(), prenom: String(rows[i][2] || "").trim(), nom: String(rows[i][3] || "").trim() };
-    }
-  }
-  return null;
 }
 
 function hasPlayed_(concours, email) {

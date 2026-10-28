@@ -8,13 +8,13 @@ Fonctionne sur ordinateur, tablette et mobile. Charte graphique : CD wedi (wedi 
 | Fichier | Rôle |
 |---|---|
 | `index.html` | Le quiz complet (HTML + CSS + JS dans un seul fichier, aucune compilation). |
-| `apps-script.gs` | Serveur Google Apps Script : vérifie les membres, bloque les doubles participations, recalcule le score et enregistre les résultats dans Google Sheets. |
+| `apps-script.gs` | Serveur Google Apps Script : bloque une 2e participation avec la même adresse e-mail, recalcule le score et enregistre les résultats dans Google Sheets. |
 
 ## Modes
 
-- **Identification** : le participant saisit uniquement l'e-mail de son compte membre. Il doit figurer dans la colonne Email de l'onglet `Membres` ; le nom et le code du membre sont repris de cette liste.
-- **Version test** (`CONFIG.ENDPOINT` vide) : e-mails de démonstration `test1@wedi.test` à `test5@wedi.test`, résultats stockés dans le navigateur. Espace organisateur : PIN `wedi2026`.
-- **Production** : renseigner `CONFIG.ENDPOINT` avec l'URL de l'application Web Apps Script. Les membres et les résultats sont dans la feuille Google (onglets `Membres` et `Resultats`). Le PIN réel est défini dans Apps Script, jamais dans ce dépôt.
+- **Concours ouvert** : le participant saisit uniquement son adresse e-mail ; n'importe quelle adresse valide peut jouer, une seule fois par concours.
+- **Mode hors ligne** (`CONFIG.ENDPOINT` vide) : résultats stockés dans le navigateur. Espace organisateur : PIN `test`.
+- **Production** : renseigner `CONFIG.ENDPOINT` avec l'URL de l'application Web Apps Script. Les résultats sont dans la feuille Google (onglet `Resultats`). Le PIN réel est défini dans Apps Script, jamais dans ce dépôt.
 
 ## Modifier
 
@@ -28,4 +28,4 @@ Fonctionne sur ordinateur, tablette et mobile. Charte graphique : CD wedi (wedi 
 2. pointer un sous-domaine (ex. `quiz.winwithwedi.net`) vers GitHub Pages avec un enregistrement CNAME, ou
 3. l'afficher dans une page existante via une iframe.
 
-Ne jamais commiter : liste de membres, résultats, PIN réel.
+Ne jamais commiter : résultats, adresses e-mail, PIN réel (le dépôt est public).

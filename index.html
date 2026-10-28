@@ -204,7 +204,7 @@ tr.win td{font-weight:700;background:#E5F5FC}
   </header>
   <main id="app"></main>
   <footer class="foot">
-    <span>Quiz Aubade 2026 · réservé aux membres du programme de récompenses</span>
+    <span>Quiz Aubade 2026 · une participation par adresse e-mail</span>
     <button class="linkbtn" id="adminLink" type="button">Espace organisateur</button>
   </footer>
 </div>
@@ -215,14 +215,12 @@ tr.win td{font-weight:700;background:#E5F5FC}
    CONFIGURATION — à modifier pour chaque concours de la série
    ===================================================================== */
 const CONFIG = {
-  CONCOURS_ID: "aubade-2026-01",          // change à chaque concours : 1 participation par membre et par concours
+  CONCOURS_ID: "aubade-2026-01",          // change à chaque concours : 1 participation par adresse e-mail et par concours
   CONCOURS_TITRE: "Quiz Aubade 2026",
   LOT: "des goodies wedi",
   // URL du script Google (voir apps-script.gs). Vide = version test : données gardées sur l'appareil.
   ENDPOINT: "https://script.google.com/macros/s/AKfycbwasGVy3WT8qtCBxKpfkElMWkfuHBjRF9TR84hUWqY5rBhdBVQmoRzAi_EY6e3oMsVE_Q/exec",
-  // Codes membres de démonstration (utilisés seulement quand ENDPOINT est vide).
-  MEMBRES_DEMO: ["test1@wedi.test","test2@wedi.test","test3@wedi.test","test4@wedi.test","test5@wedi.test"],
-  ADMIN_PIN: "wedi2026",                  // version test uniquement ; en ligne, le PIN est vérifié par le script Google
+  ADMIN_PIN: "test",                      // mode hors ligne uniquement ; en ligne, le PIN est défini et vérifié dans Apps Script
   NB_GAGNANTS: 5,                         // les 5 meilleurs (score, puis temps le plus court) gagnent
   DUREE_INTRO_MS: 3000,                   // durée de l'écran d'annonce de chaque thème
   DUREE_FIN_MS: 3000                      // durée de l'animation "Félicitations" (même durée que les thèmes)
@@ -257,7 +255,6 @@ async function api(action, payload){
 const Store = {
   async checkMember(email){
     if(CONFIG.ENDPOINT) return api("check",{email});
-    if(!CONFIG.MEMBRES_DEMO.includes(email)) return {ok:false,reason:"unknown"};
     if(lsRead().some(r=>r.concours===CONFIG.CONCOURS_ID && r.email===email)) return {ok:false,reason:"played"};
     return {ok:true};
   },
@@ -315,15 +312,14 @@ function screenStart(err){
     </div>
     <div class="panel">
       <form id="startForm" novalidate>
-        <label class="f start-field" for="email">E-mail de votre compte membre
+        <label class="f start-field" for="email">Votre adresse e-mail
           <input type="email" id="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="prenom.nom@exemple.fr" required></label>
         <label class="check" for="rgpd"><input type="checkbox" id="rgpd">
-          <span>J’accepte que wedi enregistre mon e-mail et mon score, associés à mon compte membre, pour organiser ce concours et attribuer les lots. Ces données ne sont pas utilisées à d’autres fins.</span></label>
+          <span>J’accepte que wedi enregistre mon adresse e-mail et mon score pour organiser ce concours et contacter les gagnants. Ces données ne sont pas utilisées à d’autres fins.</span></label>
         <label class="check" for="reglement"><input type="checkbox" id="reglement">
-          <span>Je confirme être membre du programme de récompenses et j’accepte le règlement du concours (une participation par membre).</span></label>
+          <span>J’accepte le règlement du concours (une seule participation par adresse e-mail).</span></label>
         ${err?`<div class="msg err" role="alert">${esc(err)}</div>`:""}
         <button class="btn btn-start" type="submit" id="goBtn">Commencer le quiz</button>
-        ${CONFIG.ENDPOINT?"":`<p class="hint">Version test : utilisez une adresse de démonstration, par exemple <code>test1@wedi.test</code> à <code>test5@wedi.test</code>.</p>`}
       </form>
     </div>`);
   if(player) document.getElementById("email").value = player.email||"";
@@ -341,9 +337,8 @@ async function onStart(ev){
     const r = await Store.checkMember(player.email);
     if(!r.ok){
       return screenStart(r.reason==="played" ? "Cette adresse e-mail a déjà participé à ce concours."
-        : "Adresse e-mail introuvable. Ce concours est réservé aux membres du programme de récompenses : utilisez l’e-mail de votre compte membre.");
+        : "Adresse e-mail non valide. Vérifiez-la et réessayez.");
     }
-    player.prenom = r.prenom||""; player.nom = r.nom||""; player.code = r.code||"";
     await settleViewport();
     startQuiz();
   }catch(e){ screenStart("Connexion impossible. Vérifiez votre réseau et réessayez.") }
@@ -625,12 +620,12 @@ function screenAdmin(note){
     ${n?`
     <h3>Top ${CONFIG.NB_GAGNANTS} · gagnants de la période</h3>
     <div class="podium">
-      ${top.map((r,i)=>`<div class="pod"><span class="rk">${i+1}</span><div><strong>${esc(r.prenom)} ${esc(r.nom)}</strong><small>${esc(r.email)} · ${esc(r.code)}</small></div><span class="pv">${r.score}/${r.total}<small>${fmtClock(r.dureeSec)}</small></span></div>`).join("")}
+      ${top.map((r,i)=>`<div class="pod"><span class="rk">${i+1}</span><div><strong>${esc(r.email)}</strong><small>${fmtDate(r.date)}</small></div><span class="pv">${r.score}/${r.total}<small>${fmtClock(r.dureeSec)}</small></span></div>`).join("")}
     </div>
     <h3>Classement complet</h3>
     <div class="tablewrap"><table>
-      <thead><tr><th>#</th><th>Nom</th><th>Prénom</th><th>E-mail</th><th>N° membre</th><th>Score</th><th>Temps</th><th>Date</th></tr></thead>
-      <tbody>${rows.map((r,i)=>`<tr class="${i<CONFIG.NB_GAGNANTS?"win":""}"><td class="n">${i+1}</td><td>${esc(r.nom)}</td><td>${esc(r.prenom)}</td><td>${esc(r.email)}</td><td>${esc(r.code)}</td><td class="n">${r.score}/${r.total}</td><td class="n">${fmtClock(r.dureeSec)}</td><td>${fmtDate(r.date)}</td></tr>`).join("")}</tbody>
+      <thead><tr><th>#</th><th>E-mail</th><th>Score</th><th>Temps</th><th>Date</th></tr></thead>
+      <tbody>${rows.map((r,i)=>`<tr class="${i<CONFIG.NB_GAGNANTS?"win":""}"><td class="n">${i+1}</td><td>${esc(r.email)}</td><td class="n">${r.score}/${r.total}</td><td class="n">${fmtClock(r.dureeSec)}</td><td>${fmtDate(r.date)}</td></tr>`).join("")}</tbody>
     </table></div>
     <h3>Taux de bonnes réponses par question</h3>
     <div class="qrate panel" style="margin-top:0">
@@ -661,11 +656,11 @@ function screenAdmin(note){
 }
 
 async function exportCsv(rows, per){
-  const head = ["Rang","Gagnant","Nom","Prénom","E-mail","N° membre","Score","Total","Temps","Temps (s)","Date"].concat(QUESTIONS.map((q,i)=>"Q"+(i+1)+" "+q.p));
+  const head = ["Rang","Gagnant","E-mail","Score","Total","Temps","Temps (s)","Date"].concat(QUESTIONS.map((q,i)=>"Q"+(i+1)+" "+q.p));
   const cell = v => '"'+String(v??"").replace(/"/g,'""')+'"';
   const lines = [cell(CONFIG.CONCOURS_TITRE+" · "+per.label)].concat([head.map(cell).join(";")]).concat(rows.map((r,i)=>{
     const qs = QUESTIONS.map((_,qi)=>{const a=(r.reponses||[]).find(x=>x.q===qi); return a? (a.ok?"OK":"Faux") : ""});
-    return [i+1,i<CONFIG.NB_GAGNANTS?"Oui":"",r.nom,r.prenom,r.email,r.code,r.score,r.total,fmtClock(r.dureeSec),r.dureeSec,fmtDate(r.date)].concat(qs).map(cell).join(";");
+    return [i+1,i<CONFIG.NB_GAGNANTS?"Oui":"",r.email,r.score,r.total,fmtClock(r.dureeSec),r.dureeSec,fmtDate(r.date)].concat(qs).map(cell).join(";");
   }));
   try{ await saveFile(`resultats-${CONFIG.CONCOURS_ID}-${per.slug}.csv`, "﻿"+lines.join("\r\n")); screenAdmin("Fichier CSV prêt. Il s’ouvre directement dans Excel.") }
   catch(e){ if(e&&e.code!=="declined") screenAdmin("L’export n’est pas disponible ici.") }
@@ -683,7 +678,7 @@ async function exportPdf(rows, per, avg){
   doc.text(clean(per.label),M,M+19);
   doc.setFont("helvetica","normal"); doc.setFontSize(9.5);
   doc.text(clean(`${CONFIG.CONCOURS_ID}  ·  ${rows.length} participants  ·  score moyen ${avg.toFixed(1).replace(".",",")}/${QUESTIONS.length}  ·  gagnants : les ${CONFIG.NB_GAGNANTS} premiers (score, puis temps)  ·  export du ${new Date().toLocaleString("fr-FR")}`),M,M+25);
-  const cols = [["#",10],["Gagnant",20],["Nom",34],["Prénom",30],["E-mail",64],["N° membre",28],["Score",18],["Temps",22],["Date",34]];
+  const cols = [["#",12],["Gagnant",24],["E-mail",110],["Score",28],["Temps",34],["Date",44]];
   let y = M+33;
   const header = ()=>{ doc.setFillColor(87,87,86); doc.rect(M,y-5,W-2*M,7,"F"); doc.setTextColor(255,255,255); doc.setFont("helvetica","bold"); let x=M+2; cols.forEach(([t,w])=>{doc.text(clean(t),x,y);x+=w}); y+=7; doc.setFont("helvetica","normal"); doc.setTextColor(87,87,86) };
   header();
@@ -692,7 +687,7 @@ async function exportPdf(rows, per, avg){
     const win = i<CONFIG.NB_GAGNANTS;
     if(win){ doc.setFillColor(204,236,249); doc.rect(M,y-5,W-2*M,7,"F") } else if(i%2===0){ doc.setFillColor(227,228,229); doc.rect(M,y-5,W-2*M,7,"F") }
     doc.setFont("helvetica", win?"bold":"normal");
-    const vals = [i+1,win?"Oui":"",r.nom,r.prenom,r.email,r.code,r.score+"/"+r.total,fmtClock(r.dureeSec),fmtDate(r.date)];
+    const vals = [i+1,win?"Oui":"",r.email,r.score+"/"+r.total,fmtClock(r.dureeSec),fmtDate(r.date)];
     let x=M+2; vals.forEach((v,k)=>{ const w=cols[k][1]; doc.text(doc.splitTextToSize(clean(v),w-3)[0]||"",x,y); x+=w }); y+=7;
   });
   try{ await saveFile(`resultats-${CONFIG.CONCOURS_ID}-${per.slug}.pdf`, doc.output("blob")); screenAdmin("Fichier PDF prêt.") }
