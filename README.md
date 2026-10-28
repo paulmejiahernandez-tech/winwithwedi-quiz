@@ -1,6 +1,7 @@
 # Quiz wedi — Win with wedi
 
-Quiz web (concours goodies) réservé aux membres du programme de récompenses wedi.
+Quiz web (concours goodies wedi), ouvert à tous : une participation par adresse e-mail.
+En ligne : https://winwithwedi-quiz.github.io/quiz/
 Fonctionne sur ordinateur, tablette et mobile. Charte graphique : CD wedi (wedi blue 100 % cyan, Noto Sans, barres, formes carrées).
 
 ## Fichiers
