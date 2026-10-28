@@ -60,10 +60,20 @@ form{display:grid;gap:14px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 @media (max-width:520px){.grid2{grid-template-columns:1fr}}
 label.f{display:grid;gap:4px;font-weight:700;font-size:.9rem}
-/* Écran d'accueil : champ e-mail et bouton de même largeur et de même hauteur */
-.start-field input[type=email],.btn.btn-start{height:60px;width:100%;max-width:520px}
-.start-field input[type=email]{font-size:1.05rem;padding:0 16px}
-.btn.btn-start{justify-self:stretch;max-width:520px;padding:0 22px;font-size:1.15rem}
+/* Écran d'accueil (maquette Figma) : champ et bouton sur toute la largeur du bloc */
+.start-form{gap:16px}
+.start-field{display:grid;gap:8px}
+.start-field label{font-weight:700;font-size:.95rem;color:var(--grey)}
+.start-field input[type=email]{height:56px;font-size:1rem;padding:0 16px;border:1px solid var(--line);font-weight:300}
+.start-field input[type=email]::placeholder{color:#9A9A99}
+.field-help{margin:0;font-size:.72rem;font-weight:300;color:var(--grey)}
+.start-form .check{font-size:.82rem;font-weight:300;align-items:flex-start}
+.start-form .check input{width:22px;height:22px;margin-top:0}
+.btn.btn-start{justify-self:stretch;width:100%;height:56px;padding:0 22px;font-size:1.2rem;margin-top:6px}
+.start-note{display:grid;gap:8px;font-size:.72rem;font-weight:300}
+.start-note p{margin:0}
+.start-note a{font-size:.82rem;font-weight:700;color:var(--blue);text-decoration:none}
+.start-note a:hover{text-decoration:underline}
 input[type=text],input[type=email],input[type=password]{font:inherit;font-weight:400;padding:12px;border:2px solid var(--line);background:var(--white);color:var(--grey);border-radius:0;width:100%}
 input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 .check{display:flex;gap:10px;align-items:flex-start;font-size:.88rem}
@@ -222,6 +232,7 @@ const CONFIG = {
   CONCOURS_ID: "aubade-2026-01",          // change à chaque concours : 1 participation par adresse e-mail et par concours
   CONCOURS_TITRE: "Quiz Aubade 2026",
   LOT: "des goodies wedi",
+  LIEN_REGLEMENT: "#",                    // URL de la page du règlement (s'ouvre dans un nouvel onglet)
   // URL du script Google (voir apps-script.gs). Vide = version test : données gardées sur l'appareil.
   ENDPOINT: "https://script.google.com/macros/s/AKfycbwasGVy3WT8qtCBxKpfkElMWkfuHBjRF9TR84hUWqY5rBhdBVQmoRzAi_EY6e3oMsVE_Q/exec",
   ADMIN_PIN: "test",                      // mode hors ligne uniquement ; en ligne, le PIN est défini et vérifié dans Apps Script
@@ -315,15 +326,22 @@ function screenStart(err){
       </div>
     </div>
     <div class="panel">
-      <form id="startForm" novalidate>
-        <label class="f start-field" for="email">Votre adresse e-mail
-          <input type="email" id="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="prenom.nom@exemple.fr" required></label>
+      <form id="startForm" class="start-form" novalidate>
+        <div class="start-field">
+          <label for="email">Pour jouer saisissez votre identifiant</label>
+          <input type="email" id="email" autocomplete="email" inputmode="email" autocapitalize="off" spellcheck="false" placeholder="prenom.nom@exemple.fr" aria-describedby="emailHelp" required>
+          <p class="field-help" id="emailHelp">Votre adresse mail est votre identifiant du programme fidélité win with wedi</p>
+        </div>
         <label class="check" for="rgpd"><input type="checkbox" id="rgpd">
           <span>J’accepte que wedi enregistre mon adresse e-mail et mon score pour organiser ce concours et contacter les gagnants. Ces données ne sont pas utilisées à d’autres fins.</span></label>
         <label class="check" for="reglement"><input type="checkbox" id="reglement">
-          <span>J’accepte le règlement du concours (une seule participation par adresse e-mail).</span></label>
+          <span>J’accepte le règlement du concours (une seule participation par identifiant du programme de fidélité)</span></label>
         ${err?`<div class="msg err" role="alert">${esc(err)}</div>`:""}
         <button class="btn btn-start" type="submit" id="goBtn">Commencer le quiz</button>
+        <div class="start-note">
+          <p>Si vous avez besoin de réviser vos connaissances sur la gamme wedi avant de démarrer, nous sommes là pour vous aider : il vous suffit de cliquer sur le lien suivant :</p>
+          <a href="${esc(CONFIG.LIEN_REGLEMENT)}" target="_blank" rel="noopener">Cliquez ici pour lire le règlement du concours :</a>
+        </div>
       </form>
     </div>`);
   if(player) document.getElementById("email").value = player.email||"";
