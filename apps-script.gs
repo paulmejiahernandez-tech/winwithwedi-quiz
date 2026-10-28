@@ -19,7 +19,7 @@
  * 5. Copiez l'URL obtenue dans CONFIG.ENDPOINT du fichier index.html.
  */
 
-const ADMIN_PIN = "changez-moi";
+const ADMIN_PIN = "wedi2026";
 
 // Index de la bonne réponse (0 = A, 1 = B, 2 = C) pour chaque question, par concours.
 const REPONSES = {
